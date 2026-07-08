@@ -17,10 +17,12 @@
 ## 2. Temel Oyun Loop (15-30 dakika)
 
 ### 2.0 Kontroller & Hareket (ÇOK ÖNEMLİ)
-- **Hareket:** Oyuncu SADECE sağa/sola hareket eder (A/D veya ←/→)
+- **Hareket:** 2D — dört yöne hareket (WASD veya ok tuşları), yaratıklar her kenardan gelir
 - **Saldırı:** %100 otomatik — tıklama, nişan alma, manuel kontrol YOK
-- **Etkileşim:** Sadece satıcı ile etkileşim (satıcının yanına gidip menü açma)
+- **Etkileşim:** Sadece satıcı ile etkileşim (satıcının yanına gidip E ile menü)
 - **Hasar Alma:** Yaratıklar oyuncunun bedenine çarparsa temas hasarı verir
+- **Level Up:** Oyun DURMAZ — seçim paneli oyun akarken üstte çıkar (1/2/3 kısayolları),
+  seçimler birikirse kuyruğa girer
 
 ### 2.1 Yaratık Sistemi
 - **Spawn:** Harita üzerinde belirli zaman aralıklarında rastgele yaratıklar spawn olur

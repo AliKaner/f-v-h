@@ -6,8 +6,76 @@
     <title>Fable vs Horde</title>
     <style>
       * { margin: 0; padding: 0; box-sizing: border-box; }
-      body { background: #0d0d14; color: #e8e8f0; font-family: 'Segoe UI', system-ui, sans-serif; overflow: hidden; }
+      body {
+        background: #0a0812;
+        color: #e8e8f0;
+        font-family: 'Segoe UI', system-ui, sans-serif;
+        overflow: hidden;
+      }
       canvas { image-rendering: pixelated; }
+
+      /* ---- Tasarim sistemi ---- */
+      .btn {
+        background: linear-gradient(135deg, #7c3aed, #5b21b6);
+        color: white;
+        border: none;
+        padding: 14px 36px;
+        font-size: 17px;
+        font-weight: 600;
+        border-radius: 10px;
+        cursor: pointer;
+        transition: transform .12s, box-shadow .12s, filter .12s;
+        box-shadow: 0 4px 20px #7c3aed44;
+      }
+      .btn:hover { transform: translateY(-2px); filter: brightness(1.15); box-shadow: 0 6px 28px #7c3aed66; }
+      .btn:active { transform: translateY(0); }
+      .btn.ghost {
+        background: #1c1728;
+        border: 1px solid #3b2f52;
+        box-shadow: none;
+      }
+      .btn.ghost:hover { border-color: #7c3aed; }
+
+      .card {
+        background: #141020ee;
+        border: 1px solid #2b2340;
+        border-radius: 16px;
+        box-shadow: 0 20px 60px #00000088;
+      }
+
+      .code-input {
+        background: #0f0c18;
+        color: #e8e8f0;
+        border: 2px solid #2b2340;
+        padding: 14px 18px;
+        font-size: 22px;
+        font-weight: 700;
+        border-radius: 10px;
+        width: 160px;
+        text-align: center;
+        letter-spacing: 8px;
+        outline: none;
+        transition: border-color .15s;
+        text-transform: uppercase;
+      }
+      .code-input:focus { border-color: #7c3aed; }
+
+      .title-glow {
+        background: linear-gradient(135deg, #c084fc, #7c3aed, #e879f9);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        filter: drop-shadow(0 0 24px #7c3aed55);
+      }
+
+      @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .55 } }
+      .pulse { animation: pulse 1.6s ease-in-out infinite; }
+
+      @keyframes slideDown { from { transform: translateY(-16px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+      .slide-down { animation: slideDown .25s ease-out; }
+
+      @keyframes float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
+      .float { animation: float 3s ease-in-out infinite; }
     </style>
   </head>
   <body>

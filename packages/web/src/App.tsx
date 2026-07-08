@@ -15,20 +15,6 @@ export default function App() {
   const [editorOpen, setEditorOpen] = useState(false);
   const previewRef = useRef<HTMLDivElement>(null);
 
-  // Cizilen karakterin lobide onizlemesi
-  useEffect(() => {
-    if (editorOpen) return; // editor kapaninca yenile
-    const holder = previewRef.current;
-    if (!holder) return;
-    holder.innerHTML = "";
-    const pixels = loadCharacter();
-    if (pixels && pixels.some((p) => p !== null)) {
-      const c = characterToCanvas(pixels, 4); // 64x64 onizleme
-      c.style.borderRadius = "8px";
-      holder.appendChild(c);
-    }
-  }, [editorOpen, screen]);
-
   useEffect(() => {
     const socket = getSocket();
     const onGameStart = (data: { code: string; seed: number }) => {
@@ -39,6 +25,22 @@ export default function App() {
       socket.off("game:start", onGameStart);
     };
   }, []);
+
+  // Cizilen karakterin lobide onizlemesi
+  useEffect(() => {
+    if (editorOpen) return; // editor kapaninca yenile
+    const holder = previewRef.current;
+    if (!holder) return;
+    holder.innerHTML = "";
+    const pixels = loadCharacter();
+    if (pixels && pixels.some((p) => p !== null)) {
+      const c = characterToCanvas(pixels, 5); // 80x80 onizleme
+      c.style.borderRadius = "10px";
+      holder.appendChild(c);
+    } else {
+      holder.innerHTML = `<span style="font-size:34px">🥷</span>`;
+    }
+  }, [editorOpen, screen]);
 
   const createRoom = () => {
     getSocket().emit("room:create", (res: { code: string }) => {
@@ -58,99 +60,120 @@ export default function App() {
   };
 
   if (screen.name === "game") {
-    return (
-      <div style={{ paddingTop: 12 }}>
-        <GameCanvas seed={screen.seed} />
-      </div>
-    );
+    return <GameCanvas seed={screen.seed} />;
   }
 
   if (screen.name === "waiting") {
     return (
-      <div style={styles.center}>
-        <h1>Rakip bekleniyor...</h1>
-        <p style={{ fontSize: 14, opacity: 0.7 }}>Bu kodu arkadaşına gönder:</p>
-        <div style={styles.code}>{screen.code}</div>
+      <div style={st.page}>
+        <div className="card slide-down" style={{ ...st.card, textAlign: "center" }}>
+          <h2 className="pulse" style={{ marginBottom: 6 }}>⏳ Rakip bekleniyor...</h2>
+          <p style={{ fontSize: 13, opacity: 0.6, marginBottom: 20 }}>Bu kodu arkadaşına gönder:</p>
+          <div style={st.code}>{screen.code}</div>
+          <button
+            className="btn ghost"
+            style={{ marginTop: 20, padding: "8px 20px", fontSize: 13 }}
+            onClick={() => navigator.clipboard?.writeText(screen.code)}
+          >
+            📋 Kopyala
+          </button>
+        </div>
       </div>
     );
   }
 
   return (
-    <div style={styles.center}>
-      <h1 style={{ fontSize: 42 }}>🧛 Fable vs Horde</h1>
-      <p style={{ opacity: 0.7, marginBottom: 32 }}>
-        Yaratıkları kes — her ölüm rakibine 2 yaratık gönderir!
-      </p>
-
-      {/* Karakter onizleme + cizim */}
-      <div style={{ display: "flex", alignItems: "center", gap: 16, marginBottom: 24 }}>
-        <div ref={previewRef} style={{ minWidth: 64, minHeight: 64, background: "#1a1a24", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center" }} />
-        <button style={{ ...styles.button, background: "#2d2440", fontSize: 15 }} onClick={() => setEditorOpen(true)}>
-          🎨 Karakterini Çiz
-        </button>
+    <div style={st.page}>
+      {/* Arka plan dekoru */}
+      <div style={st.bgDecor} aria-hidden>
+        <span className="float" style={{ ...st.bgEmoji, top: "12%", left: "12%", animationDelay: "0s" }}>🧟</span>
+        <span className="float" style={{ ...st.bgEmoji, top: "20%", right: "14%", animationDelay: ".8s" }}>👹</span>
+        <span className="float" style={{ ...st.bgEmoji, bottom: "18%", left: "18%", animationDelay: "1.4s" }}>🗡️</span>
+        <span className="float" style={{ ...st.bgEmoji, bottom: "14%", right: "12%", animationDelay: ".4s" }}>🩸</span>
       </div>
 
-      <button style={styles.button} onClick={createRoom}>
-        ⚔️ Oyun Kur
-      </button>
+      <div className="card slide-down" style={st.card}>
+        <h1 className="title-glow" style={{ fontSize: 46, textAlign: "center", marginBottom: 4 }}>
+          FABLE vs HORDE
+        </h1>
+        <p style={{ textAlign: "center", opacity: 0.65, fontSize: 14, marginBottom: 28 }}>
+          Yaratıkları kes — her ölüm rakibine <b>2 yaratık</b> gönderir! ⚔️
+        </p>
 
-      <div style={{ margin: "24px 0", opacity: 0.5 }}>— veya —</div>
+        {/* Karakter */}
+        <div style={st.charRow}>
+          <div ref={previewRef} style={st.preview} />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, marginBottom: 4 }}>Karakterin</div>
+            <div style={{ fontSize: 12, opacity: 0.6, marginBottom: 10 }}>
+              16×16 pixel — kendi kahramanını çiz!
+            </div>
+            <button className="btn ghost" style={{ padding: "8px 18px", fontSize: 14 }} onClick={() => setEditorOpen(true)}>
+              🎨 Çiz / Düzenle
+            </button>
+          </div>
+        </div>
 
-      <div style={{ display: "flex", gap: 8 }}>
-        <input
-          style={styles.input}
-          placeholder="DAVET KODU"
-          maxLength={4}
-          value={joinCode}
-          onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-          onKeyDown={(e) => e.key === "Enter" && joinRoom()}
-        />
-        <button style={styles.button} onClick={joinRoom}>
-          Katıl
+        <button className="btn" style={{ width: "100%", marginBottom: 18 }} onClick={createRoom}>
+          ⚔️ OYUN KUR
         </button>
+
+        <div style={st.divider}>
+          <span style={st.dividerLine} />
+          <span style={{ fontSize: 12, opacity: 0.45, padding: "0 12px" }}>veya davet koduyla katıl</span>
+          <span style={st.dividerLine} />
+        </div>
+
+        <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+          <input
+            className="code-input"
+            placeholder="KOD"
+            maxLength={4}
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            onKeyDown={(e) => e.key === "Enter" && joinRoom()}
+          />
+          <button className="btn" onClick={joinRoom}>Katıl</button>
+        </div>
+        {error && <p style={{ color: "#f87171", marginTop: 12, textAlign: "center", fontSize: 14 }}>⚠️ {error}</p>}
       </div>
-      {error && <p style={{ color: "#ff6b6b", marginTop: 12 }}>{error}</p>}
+
+      <div style={st.footer}>
+        WASD hareket · Silahlar otomatik saldırır · Satıcıdan rakibini zayıflat
+      </div>
 
       {editorOpen && <CharacterEditor onClose={() => setEditorOpen(false)} />}
     </div>
   );
 }
 
-const styles: Record<string, React.CSSProperties> = {
-  center: {
-    display: "flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "center",
-    height: "100vh",
+const st: Record<string, React.CSSProperties> = {
+  page: {
+    height: "100vh", display: "flex", flexDirection: "column",
+    alignItems: "center", justifyContent: "center",
+    background: "radial-gradient(ellipse at 50% 30%, #1c1230 0%, #0a0812 70%)",
+    position: "relative",
   },
-  button: {
-    background: "#7c3aed",
-    color: "white",
-    border: "none",
-    padding: "12px 32px",
-    fontSize: 18,
-    borderRadius: 8,
-    cursor: "pointer",
+  bgDecor: { position: "absolute", inset: 0, pointerEvents: "none" },
+  bgEmoji: { position: "absolute", fontSize: 40, opacity: 0.14 },
+  card: { padding: "40px 48px", width: 480, zIndex: 1 },
+  charRow: {
+    display: "flex", alignItems: "center", gap: 18,
+    background: "#0f0c18", border: "1px solid #2b2340",
+    borderRadius: 14, padding: 16, marginBottom: 22,
   },
-  input: {
-    background: "#1a1a24",
-    color: "white",
-    border: "1px solid #333",
-    padding: "12px 16px",
-    fontSize: 18,
-    borderRadius: 8,
-    width: 140,
-    textAlign: "center",
-    letterSpacing: 4,
+  preview: {
+    width: 80, height: 80, background: "#1c1728", borderRadius: 10,
+    display: "flex", alignItems: "center", justifyContent: "center",
+    border: "1px solid #2b2340", flexShrink: 0, overflow: "hidden",
   },
+  divider: { display: "flex", alignItems: "center", marginBottom: 18 },
+  dividerLine: { flex: 1, height: 1, background: "#2b2340" },
   code: {
-    fontSize: 48,
-    fontWeight: "bold",
-    letterSpacing: 12,
-    background: "#1a1a24",
-    padding: "16px 32px",
-    borderRadius: 12,
-    marginTop: 8,
+    fontSize: 52, fontWeight: 800, letterSpacing: 16,
+    background: "#0f0c18", border: "2px solid #7c3aed",
+    padding: "18px 20px 18px 36px", borderRadius: 14,
+    boxShadow: "0 0 40px #7c3aed33",
   },
+  footer: { position: "absolute", bottom: 20, fontSize: 12, opacity: 0.4 },
 };

@@ -1,5 +1,7 @@
 // Oyun motoru — her istemci KENDI arenasini simule eder.
 // Kill'ler socket uzerinden rakibe 2 yaratik olarak gider (GDD 2.1.1).
+// 2D hareket: oyuncu 4 yone gidebilir, yaratiklar her kenardan gelir.
+// Level up oyunu DURDURMAZ — secim oyun akarken yapilir.
 
 import {
   ARENA, PLAYER_BASE, CREATURES, WEAPONS, BOOKS,
@@ -12,6 +14,7 @@ export interface CreatureState {
   uid: number;
   def: CreatureDef;
   x: number;
+  y: number;
   hp: number;
   maxHp: number;
   damage: number;
@@ -40,6 +43,7 @@ export interface OwnedBook {
 
 export interface Turret {
   x: number;
+  y: number;
   lifeLeft: number;
   cooldownLeft: number;
 }
@@ -48,9 +52,11 @@ export interface Projectile {
   x: number;
   y: number;
   vx: number;
+  vy: number;
   damage: number;
   hitRadius: number;
   color: string;
+  alive: boolean;
 }
 
 export interface FloatingText {
@@ -64,11 +70,13 @@ export interface FloatingText {
 // Silah gorsel efektleri — karakterin ETRAFINDA oynar, karakter animasyonu degismez
 export interface WeaponEffect {
   type: WeaponType;
-  x: number; // efekt merkezi
-  targetX?: number; // hedefli efektler icin (simsek vb.)
+  x: number;
+  y: number;
+  targetX?: number;
+  targetY?: number;
   radius?: number;
   dir?: 1 | -1;
-  life: number; // kalan sure
+  life: number;
   maxLife: number;
 }
 
@@ -83,13 +91,14 @@ export interface LevelUpChoice {
 
 export interface EngineCallbacks {
   onKill: (count: number) => void; // rakibe spawn gonder
-  onLevelUp: (choices: LevelUpChoice[]) => void;
+  onLevelUp: (choices: LevelUpChoice[]) => void; // oyun DURMAZ — panel akarken gosterilir
   onDeath: () => void;
 }
 
 export class GameEngine {
-  // Oyuncu
+  // Oyuncu — 2D pozisyon
   playerX = ARENA.width / 2;
+  playerY = (ARENA.top + ARENA.bottom) / 2;
   facing: 1 | -1 = 1;
   hp = PLAYER_BASE.hp;
   maxHp = PLAYER_BASE.hp;
@@ -97,7 +106,7 @@ export class GameEngine {
   xp = 0;
   level = 1;
   kills = 0;
-  playerAnim: "Idle" | "Walk" | "Hurt" | "Death" = "Idle";
+  playerAnim: "Idle" | "Walk" = "Idle";
   playerAnimTime = 0;
   hurtFlash = 0;
 
@@ -111,11 +120,11 @@ export class GameEngine {
   effects: WeaponEffect[] = [];
 
   elapsed = 0;
-  paused = false; // level-up secimi sirasinda
   gameOver = false;
   private spawnTimer = 0;
   private nextUid = 1;
-  private pendingSpawns = 0; // rakipten gelen yaratiklar
+  private pendingSpawns = 0; // rakipten gelen yaratiklar (kuyruk)
+  private pendingReleaseTimer = 0;
   private rng: () => number;
 
   // Rakip debuff'lari (bize uygulanan)
@@ -123,7 +132,7 @@ export class GameEngine {
   weakenedUntil = 0;
   monstersBuffedUntil = 0;
 
-  input = { left: false, right: false };
+  input = { left: false, right: false, up: false, down: false };
 
   constructor(seed: number, private cb: EngineCallbacks) {
     // Deterministik RNG (mulberry32)
@@ -159,7 +168,9 @@ export class GameEngine {
 
   get difficulty() { return difficultyAt(this.elapsed); }
   get xpNeeded() { return xpToNextLevel(this.level); }
-  get nearVendor() { return Math.abs(this.playerX - ARENA.vendorX) < ARENA.vendorRange; }
+  get nearVendor() {
+    return Math.hypot(this.playerX - ARENA.vendorX, this.playerY - ARENA.vendorY) < ARENA.vendorRange;
+  }
 
   /** Rakipten gelen spawn istegi */
   queueEnemySpawns(count: number) { this.pendingSpawns += count; }
@@ -176,14 +187,14 @@ export class GameEngine {
       case "steal": {
         const stolen = Math.floor(this.gold * 0.25);
         this.gold -= stolen;
-        this.addText(this.playerX, ARENA.groundY - 120, `-${stolen} 🪙 çalındı!`, "#fbbf24");
+        this.addText(this.playerX, this.playerY - 90, `-${stolen} 🪙 çalındı!`, "#fbbf24");
         break;
       }
     }
   }
 
   update(dt: number) {
-    if (this.paused || this.gameOver) return;
+    if (this.gameOver) return;
     this.elapsed += dt;
     this.playerAnimTime += dt;
 
@@ -209,14 +220,20 @@ export class GameEngine {
   }
 
   private updatePlayer(dt: number) {
-    let dir = 0;
-    if (this.input.left) dir -= 1;
-    if (this.input.right) dir += 1;
-    if (dir !== 0) {
-      this.playerX = Math.max(40, Math.min(ARENA.width - 40, this.playerX + dir * this.moveSpeed * dt));
-      this.facing = dir as 1 | -1;
-      if (this.playerAnim === "Idle") this.playerAnim = "Walk";
-    } else if (this.playerAnim === "Walk") {
+    let dx = 0, dy = 0;
+    if (this.input.left) dx -= 1;
+    if (this.input.right) dx += 1;
+    if (this.input.up) dy -= 1;
+    if (this.input.down) dy += 1;
+    if (dx !== 0 || dy !== 0) {
+      // Capraz hareket normalize (kose kacisi hizli olmasin)
+      const len = Math.hypot(dx, dy);
+      const speed = this.moveSpeed * dt;
+      this.playerX = Math.max(40, Math.min(ARENA.width - 40, this.playerX + (dx / len) * speed));
+      this.playerY = Math.max(ARENA.top, Math.min(ARENA.bottom, this.playerY + (dy / len) * speed));
+      if (dx !== 0) this.facing = dx > 0 ? 1 : -1;
+      this.playerAnim = "Walk";
+    } else {
       this.playerAnim = "Idle";
     }
     this.hurtFlash = Math.max(0, this.hurtFlash - dt);
@@ -226,11 +243,12 @@ export class GameEngine {
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnTimer = spawnInterval(this.difficulty);
-      this.spawnCreature();
+      if (this.creatures.length < ARENA.maxCreatures) this.spawnCreature();
     }
-    // Rakipten gelenler: her frame en fazla 3 tane cikar (ani yigilmayi yay)
-    let burst = Math.min(3, this.pendingSpawns);
-    while (burst-- > 0) {
+    // Rakipten gelenler: 0.15 sn'de bir cikar — ani yigilma olmasin
+    this.pendingReleaseTimer -= dt;
+    if (this.pendingSpawns > 0 && this.pendingReleaseTimer <= 0 && this.creatures.length < ARENA.maxCreatures) {
+      this.pendingReleaseTimer = 0.15;
       this.pendingSpawns--;
       this.spawnCreature();
     }
@@ -249,25 +267,26 @@ export class GameEngine {
   private spawnCreature() {
     const def = this.pickCreature();
     const diff = this.difficulty;
-    const fromLeft = this.rng() < 0.5;
+    // Rastgele bir kenardan spawn (2D alan)
+    const edge = Math.floor(this.rng() * 4);
+    let x: number, y: number;
+    switch (edge) {
+      case 0: x = -50; y = ARENA.top + this.rng() * (ARENA.bottom - ARENA.top); break; // sol
+      case 1: x = ARENA.width + 50; y = ARENA.top + this.rng() * (ARENA.bottom - ARENA.top); break; // sag
+      case 2: x = this.rng() * ARENA.width; y = ARENA.top - 60; break; // ust
+      default: x = this.rng() * ARENA.width; y = ARENA.bottom + 60; break; // alt
+    }
     const hp = creatureHp(def.baseHp, diff);
     this.creatures.push({
       uid: this.nextUid++,
-      def,
-      x: fromLeft ? -50 : ARENA.width + 50,
-      hp,
-      maxHp: hp,
+      def, x, y,
+      hp, maxHp: hp,
       damage: creatureDamage(def.baseDamage, diff),
       speed: def.speed * (1 + Math.min(1, diff * 0.02)),
-      slowUntil: 0,
-      burnUntil: 0,
-      burnDps: 0,
+      slowUntil: 0, burnUntil: 0, burnDps: 0,
       buffed: this.elapsed < this.monstersBuffedUntil,
-      anim: "Walk",
-      animTime: 0,
-      dead: false,
-      contactCd: 0,
-      facing: fromLeft ? 1 : -1,
+      anim: "Walk", animTime: 0, dead: false, contactCd: 0,
+      facing: x < this.playerX ? 1 : -1,
     });
   }
 
@@ -283,21 +302,25 @@ export class GameEngine {
       const slowMult = this.elapsed < c.slowUntil ? 0.5 : 1;
       const buffMult = c.buffed ? 1.5 : 1;
       const dx = this.playerX - c.x;
+      const dy = this.playerY - c.y;
+      const dist = Math.hypot(dx, dy);
       c.facing = dx > 0 ? 1 : -1;
 
-      const dist = Math.abs(dx);
+      // Oyuncuya dogru 2D hareket
       if (dist > 30) {
-        c.x += Math.sign(dx) * c.speed * slowMult * dt;
+        const step = c.speed * slowMult * dt;
+        c.x += (dx / dist) * step;
+        c.y += (dy / dist) * step;
       }
 
-      // Temas hasari
+      // Temas hasari (beden carpismasi)
       c.contactCd -= dt;
       if (dist <= 45 && c.contactCd <= 0) {
         c.contactCd = PLAYER_BASE.contactDamageInterval;
-        const dmg = Math.floor(c.damage * buffMult * this.damageTakenMult);
+        const dmg = Math.max(1, Math.floor(c.damage * buffMult * this.damageTakenMult));
         this.hp -= dmg;
         this.hurtFlash = 0.25;
-        this.addText(this.playerX, ARENA.groundY - 130, `-${dmg}`, "#ff4d4d");
+        this.addText(this.playerX, this.playerY - 90, `-${dmg}`, "#ff4d4d");
       }
     }
     // Death animasyonu bitenleri sil (~0.6sn)
@@ -315,7 +338,7 @@ export class GameEngine {
     dmg = Math.max(1, Math.floor(dmg));
     c.hp -= dmg;
     if (showText) {
-      this.addText(c.x, ARENA.groundY - 110, crit ? `${dmg}!` : `${dmg}`, crit ? "#ffd700" : "#ffffff");
+      this.addText(c.x, c.y - 70, crit ? `${dmg}!` : `${dmg}`, crit ? "#ffd700" : "#ffffff");
     }
     if (c.hp <= 0) this.killCreature(c);
   }
@@ -330,7 +353,7 @@ export class GameEngine {
     const gold = Math.floor(goldDrop(c.def.baseGold, diff) * this.goldMult);
     const xp = xpDrop(c.def.baseXp, diff);
     this.gold += gold;
-    this.addText(c.x, ARENA.groundY - 90, `+${gold}🪙`, "#fbbf24");
+    this.addText(c.x, c.y - 50, `+${gold}🪙`, "#fbbf24");
     this.gainXp(xp);
 
     // CEKIRDEK MEKANIK: her kill rakibe 2 yaratik spawn ettirir
@@ -343,11 +366,15 @@ export class GameEngine {
       this.xp -= this.xpNeeded;
       this.level++;
       // HP kitabi carpaniyla max can guncelle + level basina +20
-      this.maxHp = Math.floor((PLAYER_BASE.hp + (this.level - 1) * 20) * (1 + this.bookLevel("hp") * 0.25));
+      this.recalcMaxHp();
       this.hp = Math.min(this.maxHp, this.hp + Math.floor(this.maxHp * 0.2)); // level up %20 heal
-      this.paused = true;
+      // Oyun DURMAZ — secenekler panele gider, oyuncu oynarken secer
       this.cb.onLevelUp(this.rollChoices());
     }
+  }
+
+  private recalcMaxHp() {
+    this.maxHp = Math.floor((PLAYER_BASE.hp + (this.level - 1) * 20) * (1 + this.bookLevel("hp") * 0.25));
   }
 
   /** Level up secenekleri: 3 adet — silah/kitap karisimi */
@@ -395,30 +422,36 @@ export class GameEngine {
   applyChoice(choice: LevelUpChoice) {
     if (choice.kind === "newWeapon" && choice.weaponType) {
       const def = WEAPONS.find((w) => w.type === choice.weaponType)!;
-      this.weapons.push({ def, level: 1, cooldownLeft: 0 });
+      if (this.weapons.length < 4 && !this.weapons.some((o) => o.def.type === def.type)) {
+        this.weapons.push({ def, level: 1, cooldownLeft: 0 });
+      }
     } else if (choice.kind === "upgradeWeapon" && choice.weaponType) {
       const w = this.weapons.find((o) => o.def.type === choice.weaponType);
       if (w) w.level++;
     } else if (choice.kind === "newBook" && choice.bookType) {
       const def = BOOKS.find((b) => b.type === choice.bookType)!;
-      this.books.push({ def, level: 1 });
+      if (this.books.length < 4 && !this.books.some((o) => o.def.type === def.type)) {
+        this.books.push({ def, level: 1 });
+      }
     } else if (choice.kind === "upgradeBook" && choice.bookType) {
       const b = this.books.find((o) => o.def.type === choice.bookType);
       if (b) b.level++;
     }
-    // HP kitabi alindiysa max can guncelle
-    this.maxHp = Math.floor((PLAYER_BASE.hp + (this.level - 1) * 20) * (1 + this.bookLevel("hp") * 0.25));
-    this.paused = false;
+    this.recalcMaxHp();
   }
 
   // ---- Silah davranislari ----
   private aliveCreatures() { return this.creatures.filter((c) => !c.dead); }
 
+  private distTo(c: { x: number; y: number }): number {
+    return Math.hypot(c.x - this.playerX, c.y - this.playerY);
+  }
+
   private nearest(within = Infinity): CreatureState | null {
     let best: CreatureState | null = null;
     let bestDist = within;
     for (const c of this.aliveCreatures()) {
-      const d = Math.abs(c.x - this.playerX);
+      const d = this.distTo(c);
       if (d < bestDist) { best = c; bestDist = d; }
     }
     return best;
@@ -441,33 +474,34 @@ export class GameEngine {
     const dmg = weaponDamage(w.def, w.level, this.damageMult);
     const alive = this.aliveCreatures();
     const extra = this.extraProjectiles;
+    const px = this.playerX, py = this.playerY;
 
     switch (w.def.type) {
       case "aoe": {
         const radius = 120 + w.level * 15;
-        for (const c of alive) if (Math.abs(c.x - this.playerX) <= radius) this.damageCreature(c, dmg, true);
-        this.addEffect({ type: "aoe", x: this.playerX, radius, life: 0.35 });
+        for (const c of alive) if (this.distTo(c) <= radius) this.damageCreature(c, dmg, true);
+        this.addEffect({ type: "aoe", x: px, y: py, radius, life: 0.35 });
         break;
       }
       case "blade": {
-        // Baktigi yonde en yakin 2+extra dusman
+        // Baktigi yonde onundeki dusmanlar (yatay koni)
         const targets = alive
-          .filter((c) => Math.sign(c.x - this.playerX) === this.facing && Math.abs(c.x - this.playerX) < 200)
-          .sort((a, b) => Math.abs(a.x - this.playerX) - Math.abs(b.x - this.playerX))
+          .filter((c) => Math.sign(c.x - px) === this.facing && Math.abs(c.x - px) < 200 && Math.abs(c.y - py) < 80)
+          .sort((a, b) => this.distTo(a) - this.distTo(b))
           .slice(0, 2 + extra);
         for (const c of targets) this.damageCreature(c, dmg, true);
-        this.addEffect({ type: "blade", x: this.playerX, dir: this.facing, radius: 200, life: 0.25 });
+        this.addEffect({ type: "blade", x: px, y: py, dir: this.facing, radius: 200, life: 0.25 });
         break;
       }
       case "frost": {
         const radius = 150 + w.level * 10;
         for (const c of alive) {
-          if (Math.abs(c.x - this.playerX) <= radius) {
+          if (this.distTo(c) <= radius) {
             c.slowUntil = this.elapsed + 2;
             this.damageCreature(c, dmg, true);
           }
         }
-        this.addEffect({ type: "frost", x: this.playerX, radius, life: 0.5 });
+        this.addEffect({ type: "frost", x: px, y: py, radius, life: 0.5 });
         break;
       }
       case "firerain": {
@@ -477,24 +511,24 @@ export class GameEngine {
           c.burnUntil = this.elapsed + 3;
           c.burnDps = dmg / 3;
           this.damageCreature(c, dmg * 0.3, true);
-          this.addEffect({ type: "firerain", x: c.x, life: 0.6 });
+          this.addEffect({ type: "firerain", x: c.x, y: c.y, life: 0.6 });
         }
         break;
       }
       case "lightning": {
         // En yakin 1+extra hedefe zincir
         const targets = alive
-          .sort((a, b) => Math.abs(a.x - this.playerX) - Math.abs(b.x - this.playerX))
+          .sort((a, b) => this.distTo(a) - this.distTo(b))
           .slice(0, 1 + extra);
         for (const c of targets) {
           this.damageCreature(c, dmg, true);
-          this.addEffect({ type: "lightning", x: this.playerX, targetX: c.x, life: 0.25 });
+          this.addEffect({ type: "lightning", x: px, y: py, targetX: c.x, targetY: c.y, life: 0.25 });
         }
         break;
       }
       case "turret": {
         if (this.turrets.length < 3) {
-          this.turrets.push({ x: this.playerX, lifeLeft: 8, cooldownLeft: 0 });
+          this.turrets.push({ x: px, y: py, lifeLeft: 8, cooldownLeft: 0 });
         }
         break;
       }
@@ -504,18 +538,25 @@ export class GameEngine {
         for (const c of alive) if (!strongest || c.hp > strongest.hp) strongest = c;
         if (strongest) {
           this.damageCreature(strongest, dmg, true);
-          this.addEffect({ type: "impactor", x: strongest.x, life: 0.4 });
+          this.addEffect({ type: "impactor", x: strongest.x, y: strongest.y, life: 0.4 });
         }
         break;
       }
       case "rapid": {
         const target = this.nearest(500);
         if (target) {
-          const dir = Math.sign(target.x - this.playerX) || this.facing;
+          const d = Math.max(1, this.distTo(target));
+          const ux = (target.x - px) / d;
+          const uy = (target.y - py) / d;
           for (let i = 0; i <= extra; i++) {
+            // Ek mermiler hafif sapmali
+            const spread = (i - extra / 2) * 0.12;
+            const cos = Math.cos(spread), sin = Math.sin(spread);
             this.projectiles.push({
-              x: this.playerX, y: ARENA.groundY - 50 - i * 8,
-              vx: dir * 600, damage: dmg, hitRadius: 30, color: "#7dd3fc",
+              x: px, y: py - 30,
+              vx: (ux * cos - uy * sin) * 600,
+              vy: (ux * sin + uy * cos) * 600,
+              damage: dmg, hitRadius: 35, color: "#7dd3fc", alive: true,
             });
           }
         }
@@ -538,14 +579,16 @@ export class GameEngine {
         let best: CreatureState | null = null;
         let bestDist = 400;
         for (const c of this.aliveCreatures()) {
-          const d = Math.abs(c.x - t.x);
+          const d = Math.hypot(c.x - t.x, c.y - t.y);
           if (d < bestDist) { best = c; bestDist = d; }
         }
         if (best) {
-          const dir = Math.sign(best.x - t.x) || 1;
+          const d = Math.max(1, Math.hypot(best.x - t.x, best.y - t.y));
           this.projectiles.push({
-            x: t.x, y: ARENA.groundY - 40,
-            vx: dir * 500, damage: dmg, hitRadius: 30, color: "#f97316",
+            x: t.x, y: t.y - 20,
+            vx: ((best.x - t.x) / d) * 500,
+            vy: ((best.y - t.y) / d) * 500,
+            damage: dmg, hitRadius: 35, color: "#f97316", alive: true,
           });
         }
       }
@@ -556,15 +599,18 @@ export class GameEngine {
   private updateProjectiles(dt: number) {
     for (const p of this.projectiles) {
       p.x += p.vx * dt;
+      p.y += p.vy * dt;
       for (const c of this.aliveCreatures()) {
-        if (Math.abs(c.x - p.x) <= p.hitRadius) {
+        if (Math.hypot(c.x - p.x, c.y - p.y) <= p.hitRadius) {
           this.damageCreature(c, p.damage, true);
-          p.vx = 0; // isabet — sil
+          p.alive = false;
           break;
         }
       }
     }
-    this.projectiles = this.projectiles.filter((p) => p.vx !== 0 && p.x > -100 && p.x < ARENA.width + 100);
+    this.projectiles = this.projectiles.filter(
+      (p) => p.alive && p.x > -100 && p.x < ARENA.width + 100 && p.y > -100 && p.y < ARENA.height + 100,
+    );
   }
 
   addText(x: number, y: number, text: string, color: string) {

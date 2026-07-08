@@ -3,10 +3,13 @@
 export const ARENA = {
   width: 1280,
   height: 720,
-  groundY: 560, // zemin cizgisi
-  playerSpeed: 220, // px/sn (kitaplarla artar)
-  vendorX: 80, // satici konumu (sol kenar)
-  vendorRange: 90, // etkilesim mesafesi
+  top: 70, // oynanabilir alan sinirlari (2D hareket)
+  bottom: 690,
+  playerSpeed: 240, // px/sn (kitaplarla artar)
+  vendorX: 90, // satici konumu (sol kenar ortasi)
+  vendorY: 380,
+  vendorRange: 100, // etkilesim mesafesi
+  maxCreatures: 120, // performans siniri — fazlasi kuyrukta bekler
 };
 
 export const PLAYER_BASE = {
@@ -15,11 +18,13 @@ export const PLAYER_BASE = {
 };
 
 // ---- Scaling formulleri (GDD 9.x) ----
+// Denge notu: yaratik buyumesi yavas (oyuncu leveli yetisebilsin),
+// oyuncu XP egrisi yumusak (sik level = sik secim = guclenme hissi)
 export function creatureHp(base: number, difficulty: number): number {
-  return Math.floor(base * Math.pow(1.07, difficulty));
+  return Math.floor(base * Math.pow(1.045, difficulty));
 }
 export function creatureDamage(base: number, difficulty: number): number {
-  return Math.floor(base * Math.pow(1.04, difficulty));
+  return Math.floor(base * Math.pow(1.025, difficulty));
 }
 export function goldDrop(base: number, difficulty: number): number {
   return base + difficulty * 2;
@@ -28,15 +33,15 @@ export function xpDrop(base: number, difficulty: number): number {
   return base + difficulty * 3;
 }
 export function xpToNextLevel(level: number): number {
-  return Math.floor(20 * Math.pow(1.18, level - 1));
+  return Math.floor(15 * Math.pow(1.15, level - 1));
 }
 // Spawn araligi (sn) — zorluk arttikca hizlanir
 export function spawnInterval(difficulty: number): number {
-  return Math.max(0.15, 3 / (1 + difficulty * 0.35));
+  return Math.max(0.4, 3 / (1 + difficulty * 0.2));
 }
-// Zorluk: oyun suresi ile artar (her 20 saniyede +1)
+// Zorluk: oyun suresi ile artar (her 40 saniyede +1)
 export function difficultyAt(elapsedSec: number): number {
-  return Math.floor(elapsedSec / 20);
+  return Math.floor(elapsedSec / 40);
 }
 
 // ---- Yaratiklar ----

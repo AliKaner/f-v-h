@@ -16,18 +16,21 @@ interface OpponentInfo {
 export default function GameCanvas({ seed }: { seed: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const engineRef = useRef<GameEngine | null>(null);
-  const [choices, setChoices] = useState<LevelUpChoice[] | null>(null);
+  // Level-up secimleri kuyrugu — oyun DURMAZ, panel akarken gosterilir
+  const [choiceQueue, setChoiceQueue] = useState<LevelUpChoice[][]>([]);
+  const choiceQueueRef = useRef(choiceQueue);
+  choiceQueueRef.current = choiceQueue;
   const [shopOpen, setShopOpen] = useState(false);
   const [result, setResult] = useState<"win" | "lose" | null>(null);
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
-  const [, forceHud] = useState(0); // HUD'u periyodik yenile
+  const [, forceHud] = useState(0);
 
   useEffect(() => {
     const socket = getSocket();
 
     const engine = new GameEngine(seed, {
       onKill: (count) => socket.emit("game:enemySpawn", { count }),
-      onLevelUp: (c) => setChoices(c),
+      onLevelUp: (c) => setChoiceQueue((q) => [...q, c]),
       onDeath: () => {
         socket.emit("game:playerDied");
         setResult("lose");
@@ -56,15 +59,31 @@ export default function GameCanvas({ seed }: { seed: number }) {
     }, 200);
     const hudTimer = setInterval(() => forceHud((n) => n + 1), 100);
 
-    // --- Klavye ---
+    // --- Klavye: WASD + ok tuslari (2D hareket), E satici, 1/2/3 secim ---
+    const pickByIndex = (i: number) => {
+      const q = choiceQueueRef.current;
+      if (q.length > 0 && q[0][i]) {
+        engine.applyChoice(q[0][i]);
+        setChoiceQueue((prev) => prev.slice(1));
+      }
+    };
     const down = (e: KeyboardEvent) => {
-      if (e.key === "a" || e.key === "A" || e.key === "ArrowLeft") engine.input.left = true;
-      if (e.key === "d" || e.key === "D" || e.key === "ArrowRight") engine.input.right = true;
-      if ((e.key === "e" || e.key === "E") && engine.nearVendor) setShopOpen((v) => !v);
+      const k = e.key.toLowerCase();
+      if (k === "a" || k === "arrowleft") engine.input.left = true;
+      if (k === "d" || k === "arrowright") engine.input.right = true;
+      if (k === "w" || k === "arrowup") engine.input.up = true;
+      if (k === "s" || k === "arrowdown") engine.input.down = true;
+      if (k === "e" && engine.nearVendor) setShopOpen((v) => !v);
+      if (k === "1") pickByIndex(0);
+      if (k === "2") pickByIndex(1);
+      if (k === "3") pickByIndex(2);
     };
     const up = (e: KeyboardEvent) => {
-      if (e.key === "a" || e.key === "A" || e.key === "ArrowLeft") engine.input.left = false;
-      if (e.key === "d" || e.key === "D" || e.key === "ArrowRight") engine.input.right = false;
+      const k = e.key.toLowerCase();
+      if (k === "a" || k === "arrowleft") engine.input.left = false;
+      if (k === "d" || k === "arrowright") engine.input.right = false;
+      if (k === "w" || k === "arrowup") engine.input.up = false;
+      if (k === "s" || k === "arrowdown") engine.input.down = false;
     };
     window.addEventListener("keydown", down);
     window.addEventListener("keyup", up);
@@ -112,10 +131,11 @@ export default function GameCanvas({ seed }: { seed: number }) {
   }, [seed]);
 
   const g = engineRef.current;
+  const currentChoices = choiceQueue[0] ?? null;
 
   const pick = (choice: LevelUpChoice) => {
     engineRef.current?.applyChoice(choice);
-    setChoices(null);
+    setChoiceQueue((prev) => prev.slice(1));
   };
 
   const buyDebuff = (id: string, cost: number) => {
@@ -123,91 +143,143 @@ export default function GameCanvas({ seed }: { seed: number }) {
     if (!engine || engine.gold < cost) return;
     engine.gold -= cost;
     getSocket().emit("game:debuffApplied", { id });
-    engine.addText(engine.playerX, ARENA.groundY - 140, "Rakibe gönderildi! 😈", "#a78bfa");
+    engine.addText(engine.playerX, engine.playerY - 100, "Rakibe gönderildi! 😈", "#a78bfa");
   };
+
+  const hpPct = g ? Math.max(0, g.hp / g.maxHp) : 1;
+  const oppHpPct = opponent ? Math.max(0, opponent.hp / opponent.maxHp) : 1;
 
   return (
     <div style={{ position: "relative", width: ARENA.width, margin: "0 auto" }}>
-      {/* HUD */}
+      {/* ---- Ust HUD ---- */}
       <div style={hud.bar}>
-        <div>
-          <b>SEN</b> — Lv {g?.level ?? 1} | ❤️ {Math.max(0, Math.ceil(g?.hp ?? 0))}/{g?.maxHp ?? 100} | 🪙 {g?.gold ?? 0} | ⚔️ {g?.kills ?? 0} kill
+        {/* Sen */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1 }}>
+          <div style={hud.levelBadge}>{g?.level ?? 1}</div>
+          <div style={{ flex: 1, maxWidth: 320 }}>
+            <div style={hud.hpOuter}>
+              <div style={{ ...hud.hpInner, width: `${hpPct * 100}%`, background: hpPct > 0.35 ? "linear-gradient(90deg,#22c55e,#4ade80)" : "linear-gradient(90deg,#dc2626,#ef4444)" }} />
+              <span style={hud.hpText}>{Math.max(0, Math.ceil(g?.hp ?? 0))} / {g?.maxHp ?? 100}</span>
+            </div>
+            <div style={hud.xpOuter}>
+              <div style={{ ...hud.xpInner, width: `${Math.min(100, ((g?.xp ?? 0) / (g?.xpNeeded ?? 1)) * 100)}%` }} />
+            </div>
+          </div>
+          <span style={hud.stat}>🪙 {g?.gold ?? 0}</span>
+          <span style={hud.stat}>⚔️ {g?.kills ?? 0}</span>
         </div>
-        <div style={{ opacity: 0.9 }}>
-          {opponent
-            ? <><b>RAKİP</b> — Lv {opponent.level} | ❤️ {Math.max(0, Math.ceil(opponent.hp))}/{opponent.maxHp} | ⚔️ {opponent.kills}</>
-            : "Rakip bekleniyor..."}
+
+        {/* Sure */}
+        <div style={hud.timer}>
+          {String(Math.floor((g?.elapsed ?? 0) / 60)).padStart(2, "0")}:{String(Math.floor((g?.elapsed ?? 0) % 60)).padStart(2, "0")}
+        </div>
+
+        {/* Rakip */}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, justifyContent: "flex-end" }}>
+          {opponent ? (
+            <>
+              <span style={hud.stat}>⚔️ {opponent.kills}</span>
+              <div style={{ flex: 1, maxWidth: 320 }}>
+                <div style={hud.hpOuter}>
+                  <div style={{ ...hud.hpInner, width: `${oppHpPct * 100}%`, background: "linear-gradient(90deg,#dc2626,#f87171)" }} />
+                  <span style={hud.hpText}>{Math.max(0, Math.ceil(opponent.hp))} / {opponent.maxHp}</span>
+                </div>
+                <div style={{ fontSize: 10, opacity: 0.6, textAlign: "right", marginTop: 2 }}>RAKİP</div>
+              </div>
+              <div style={{ ...hud.levelBadge, background: "linear-gradient(135deg,#dc2626,#7f1d1d)" }}>{opponent.level}</div>
+            </>
+          ) : (
+            <span className="pulse" style={{ fontSize: 13, opacity: 0.6 }}>Rakip bağlanıyor...</span>
+          )}
         </div>
       </div>
-      {/* XP bar */}
-      <div style={hud.xpOuter}>
-        <div style={{ ...hud.xpInner, width: `${Math.min(100, ((g?.xp ?? 0) / (g?.xpNeeded ?? 1)) * 100)}%` }} />
-      </div>
 
-      <canvas ref={canvasRef} width={ARENA.width} height={ARENA.height} style={{ display: "block", borderRadius: 8 }} />
+      <canvas ref={canvasRef} width={ARENA.width} height={ARENA.height} style={{ display: "block" }} />
 
-      {/* Envanter */}
+      {/* ---- Alt bar: envanter ---- */}
       <div style={hud.inventory}>
-        {g?.weapons.map((w) => (
-          <span key={w.def.type} style={hud.slot} title={w.def.name}>{w.def.emoji}{w.level}</span>
-        ))}
-        <span style={{ opacity: 0.4, margin: "0 6px" }}>|</span>
-        {g?.books.map((b) => (
-          <span key={b.def.type} style={hud.slot} title={b.def.name}>{b.def.emoji}{b.level}</span>
-        ))}
+        <span style={hud.invLabel}>SİLAHLAR</span>
+        {[0, 1, 2, 3].map((i) => {
+          const w = g?.weapons[i];
+          return (
+            <span key={i} style={{ ...hud.slot, opacity: w ? 1 : 0.25 }} title={w?.def.name}>
+              {w ? <>{w.def.emoji}<small style={hud.slotLvl}>{w.level}</small></> : "·"}
+            </span>
+          );
+        })}
+        <span style={{ ...hud.invLabel, marginLeft: 20 }}>KİTAPLAR</span>
+        {[0, 1, 2, 3].map((i) => {
+          const b = g?.books[i];
+          return (
+            <span key={i} style={{ ...hud.slot, opacity: b ? 1 : 0.25 }} title={b?.def.name}>
+              {b ? <>{b.def.emoji}<small style={hud.slotLvl}>{b.level}</small></> : "·"}
+            </span>
+          );
+        })}
+        <span style={{ marginLeft: "auto", fontSize: 11, opacity: 0.45 }}>
+          WASD / Ok tuşları: hareket · E: satıcı · 1-3: seçim
+        </span>
       </div>
 
-      {/* Level Up secimi */}
-      {choices && (
-        <div style={hud.overlay}>
-          <h2 style={{ marginBottom: 16 }}>⬆️ Seviye {g?.level}! Seçimini yap:</h2>
-          <div style={{ display: "flex", gap: 12 }}>
-            {choices.map((c, i) => (
-              <button key={i} style={hud.choice} onClick={() => pick(c)}>
-                <div style={{ fontSize: 36 }}>{c.emoji}</div>
-                <div style={{ fontWeight: "bold", margin: "8px 0" }}>{c.title}</div>
-                <div style={{ fontSize: 13, opacity: 0.8 }}>{c.desc}</div>
+      {/* ---- Level Up paneli (oyun DURMAZ — ust ortada süzülür) ---- */}
+      {currentChoices && !result && (
+        <div className="slide-down" style={hud.levelUpPanel}>
+          <div style={{ textAlign: "center", fontSize: 13, marginBottom: 8, color: "#c084fc", fontWeight: 700 }}>
+            ⬆️ SEVİYE ATLADIN! {choiceQueue.length > 1 && <span style={{ opacity: 0.7 }}>(+{choiceQueue.length - 1} bekliyor)</span>}
+          </div>
+          <div style={{ display: "flex", gap: 10 }}>
+            {currentChoices.map((c, i) => (
+              <button key={i} className="btn ghost" style={hud.choiceCard} onClick={() => pick(c)}>
+                <div style={{ fontSize: 15, marginBottom: 2 }}>
+                  <kbd style={hud.kbd}>{i + 1}</kbd> {c.emoji}
+                </div>
+                <div style={{ fontWeight: 700, fontSize: 13 }}>{c.title}</div>
+                <div style={{ fontSize: 11, opacity: 0.75, marginTop: 2 }}>{c.desc}</div>
               </button>
             ))}
           </div>
         </div>
       )}
 
-      {/* Satici */}
-      {shopOpen && !choices && !result && (
-        <div style={hud.overlay}>
-          <h2>🧙 Satıcı — Rakibini Zayıflat</h2>
-          <p style={{ opacity: 0.7, margin: "8px 0 16px" }}>Altının: 🪙 {g?.gold ?? 0}</p>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8, width: 420 }}>
-            {DEBUFFS.map((d) => (
-              <button
-                key={d.id}
-                style={{ ...hud.shopItem, opacity: (g?.gold ?? 0) >= d.cost ? 1 : 0.4 }}
-                onClick={() => buyDebuff(d.id, d.cost)}
-              >
-                <span style={{ fontSize: 24 }}>{d.emoji}</span>
-                <span style={{ flex: 1, textAlign: "left", marginLeft: 12 }}>
-                  <b>{d.name}</b>
-                  <div style={{ fontSize: 12, opacity: 0.8 }}>{d.desc}</div>
-                </span>
-                <b>🪙 {d.cost}</b>
-              </button>
-            ))}
+      {/* ---- Satici paneli (oyun devam eder!) ---- */}
+      {shopOpen && !result && (
+        <div className="slide-down" style={hud.shopPanel}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <b>🧙 Satıcı — Rakibini Zayıflat</b>
+            <span style={{ fontSize: 13 }}>🪙 {g?.gold ?? 0}</span>
           </div>
-          <button style={{ ...hud.choice, marginTop: 16, padding: "8px 24px" }} onClick={() => setShopOpen(false)}>
-            Kapat [E]
-          </button>
+          {DEBUFFS.map((d) => (
+            <button
+              key={d.id}
+              className="btn ghost"
+              style={{ ...hud.shopItem, opacity: (g?.gold ?? 0) >= d.cost ? 1 : 0.4 }}
+              onClick={() => buyDebuff(d.id, d.cost)}
+            >
+              <span style={{ fontSize: 20 }}>{d.emoji}</span>
+              <span style={{ flex: 1, textAlign: "left", marginLeft: 10 }}>
+                <b style={{ fontSize: 13 }}>{d.name}</b>
+                <div style={{ fontSize: 11, opacity: 0.75 }}>{d.desc}</div>
+              </span>
+              <b style={{ fontSize: 13 }}>🪙 {d.cost}</b>
+            </button>
+          ))}
+          <div style={{ fontSize: 11, opacity: 0.5, textAlign: "center", marginTop: 6 }}>[E] kapat — oyun devam ediyor!</div>
         </div>
       )}
 
-      {/* Oyun sonu */}
+      {/* ---- Oyun sonu ---- */}
       {result && (
         <div style={hud.overlay}>
-          <h1 style={{ fontSize: 64 }}>{result === "win" ? "🏆 KAZANDIN!" : "💀 KAYBETTİN"}</h1>
-          <p style={{ margin: "12px 0 24px", opacity: 0.8 }}>
-            Seviye {g?.level} — {g?.kills} kill — {Math.floor(g?.elapsed ?? 0)} saniye
-          </p>
-          <button style={hud.choice} onClick={() => location.reload()}>Lobiye Dön</button>
+          <div className="card" style={{ padding: "48px 64px", textAlign: "center" }}>
+            <h1 style={{ fontSize: 56, marginBottom: 8 }}>{result === "win" ? "🏆" : "💀"}</h1>
+            <h1 className={result === "win" ? "title-glow" : ""} style={{ fontSize: 42, marginBottom: 12 }}>
+              {result === "win" ? "KAZANDIN!" : "KAYBETTİN"}
+            </h1>
+            <p style={{ opacity: 0.7, marginBottom: 28 }}>
+              Seviye {g?.level} · {g?.kills} kill · {Math.floor((g?.elapsed ?? 0) / 60)}dk {Math.floor((g?.elapsed ?? 0) % 60)}sn
+            </p>
+            <button className="btn" onClick={() => location.reload()}>Lobiye Dön</button>
+          </div>
         </div>
       )}
     </div>
@@ -216,27 +288,60 @@ export default function GameCanvas({ seed }: { seed: number }) {
 
 const hud: Record<string, React.CSSProperties> = {
   bar: {
-    display: "flex", justifyContent: "space-between", padding: "8px 12px",
-    background: "#16121f", borderRadius: "8px 8px 0 0", fontSize: 14,
+    display: "flex", alignItems: "center", gap: 16, padding: "10px 14px",
+    background: "#120e1c", borderBottom: "1px solid #2b2340",
   },
-  xpOuter: { height: 6, background: "#16121f", overflow: "hidden" },
+  levelBadge: {
+    width: 38, height: 38, borderRadius: 10, flexShrink: 0,
+    background: "linear-gradient(135deg,#7c3aed,#4c1d95)",
+    display: "flex", alignItems: "center", justifyContent: "center",
+    fontWeight: 800, fontSize: 16, boxShadow: "0 2px 12px #7c3aed55",
+  },
+  hpOuter: {
+    position: "relative", height: 18, background: "#0a0812",
+    borderRadius: 6, overflow: "hidden", border: "1px solid #2b2340",
+  },
+  hpInner: { height: "100%", transition: "width .15s" },
+  hpText: {
+    position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
+    fontSize: 11, fontWeight: 700, textShadow: "0 1px 2px #000",
+  },
+  xpOuter: { height: 5, background: "#0a0812", borderRadius: 3, overflow: "hidden", marginTop: 3 },
   xpInner: { height: "100%", background: "linear-gradient(90deg,#7c3aed,#c084fc)", transition: "width .2s" },
+  stat: { fontSize: 14, fontWeight: 700, whiteSpace: "nowrap" },
+  timer: { fontSize: 20, fontWeight: 800, fontVariantNumeric: "tabular-nums", opacity: 0.9 },
   inventory: {
-    display: "flex", gap: 6, padding: "8px 12px", background: "#16121f",
-    borderRadius: "0 0 8px 8px", fontSize: 16, minHeight: 38, alignItems: "center",
+    display: "flex", gap: 6, padding: "8px 14px", alignItems: "center",
+    background: "#120e1c", borderTop: "1px solid #2b2340", fontSize: 16,
   },
-  slot: { background: "#241d33", borderRadius: 6, padding: "4px 8px" },
+  invLabel: { fontSize: 10, fontWeight: 700, opacity: 0.45, letterSpacing: 1 },
+  slot: {
+    width: 40, height: 40, background: "#1c1728", border: "1px solid #2b2340",
+    borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
+    position: "relative", fontSize: 18,
+  },
+  slotLvl: {
+    position: "absolute", bottom: 1, right: 4, fontSize: 10, fontWeight: 800, color: "#c084fc",
+  },
+  levelUpPanel: {
+    position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",
+    background: "#141020f2", border: "1px solid #7c3aed", borderRadius: 14,
+    padding: 14, zIndex: 10, boxShadow: "0 8px 40px #7c3aed44",
+  },
+  choiceCard: { width: 190, padding: 10, textAlign: "center", borderRadius: 10 },
+  kbd: {
+    background: "#2b2340", borderRadius: 4, padding: "1px 6px",
+    fontSize: 11, fontWeight: 700, color: "#c084fc",
+  },
+  shopPanel: {
+    position: "absolute", left: 16, top: 90, width: 340,
+    background: "#141020f2", border: "1px solid #eab30888", borderRadius: 14,
+    padding: 14, zIndex: 10, display: "flex", flexDirection: "column", gap: 6,
+    boxShadow: "0 8px 40px #00000088",
+  },
+  shopItem: { display: "flex", alignItems: "center", padding: "8px 12px", borderRadius: 8 },
   overlay: {
-    position: "absolute", inset: 0, background: "#000000cc",
-    display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
-    borderRadius: 8, zIndex: 10,
-  },
-  choice: {
-    background: "#241d33", color: "white", border: "2px solid #7c3aed",
-    borderRadius: 12, padding: 16, width: 200, cursor: "pointer", fontSize: 14,
-  },
-  shopItem: {
-    display: "flex", alignItems: "center", background: "#241d33", color: "white",
-    border: "1px solid #444", borderRadius: 8, padding: "10px 14px", cursor: "pointer",
+    position: "absolute", inset: 0, background: "#000000cc", zIndex: 20,
+    display: "flex", alignItems: "center", justifyContent: "center",
   },
 };
