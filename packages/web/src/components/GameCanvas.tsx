@@ -93,6 +93,8 @@ export default function GameCanvas({ seed }: { seed: number }) {
             x: Math.round(c.x), y: Math.round(c.y),
             s: c.def.sprite, f: c.facing,
             hp: Math.round((c.hp / c.maxHp) * 100) / 100,
+            lvl: c.level,
+            isBoss: c.isBoss,
           })),
       };
       socket.emit("game:stateSync", snapshot);

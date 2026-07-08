@@ -28,6 +28,8 @@ export interface CreatureState {
   dead: boolean; // death animasyonu oynuyor
   contactCd: number;
   facing: 1 | -1;
+  level: number;
+  isBoss?: boolean;
 }
 
 export interface OwnedWeapon {
@@ -131,6 +133,7 @@ export class GameEngine {
   slowedUntil = 0;
   weakenedUntil = 0;
   monstersBuffedUntil = 0;
+  monsterLevelOffset = 0;
 
   input = { left: false, right: false, up: false, down: false };
 
@@ -183,6 +186,23 @@ export class GameEngine {
       case "buffMonsters":
         this.monstersBuffedUntil = this.elapsed + 15;
         for (const c of this.creatures) if (!c.dead) c.buffed = true;
+        break;
+      case "levelUpMonsters":
+        this.monsterLevelOffset += 1;
+        this.addText(this.playerX, this.playerY - 110, "⚠️ Canavarlar Seviye Atladı! Lvl +1", "#ef4444");
+        for (const c of this.creatures) {
+          if (!c.dead) {
+            c.level += 1;
+            const prevMaxHp = c.maxHp;
+            c.maxHp = creatureHp(c.def.baseHp, c.level);
+            c.hp = Math.max(0, Math.floor(c.hp * (c.maxHp / prevMaxHp)));
+            c.damage = creatureDamage(c.def.baseDamage, c.level);
+            c.speed = c.def.speed * (1 + Math.min(1, c.level * 0.02));
+          }
+        }
+        break;
+      case "spawnBoss":
+        this.spawnBossCreature();
         break;
       case "steal": {
         const stolen = Math.floor(this.gold * 0.25);
@@ -276,18 +296,48 @@ export class GameEngine {
       case 2: x = this.rng() * ARENA.width; y = ARENA.top - 60; break; // ust
       default: x = this.rng() * ARENA.width; y = ARENA.bottom + 60; break; // alt
     }
-    const hp = creatureHp(def.baseHp, diff);
+    const level = diff + this.monsterLevelOffset;
+    const hp = creatureHp(def.baseHp, level);
     this.creatures.push({
       uid: this.nextUid++,
       def, x, y,
       hp, maxHp: hp,
-      damage: creatureDamage(def.baseDamage, diff),
-      speed: def.speed * (1 + Math.min(1, diff * 0.02)),
+      damage: creatureDamage(def.baseDamage, level),
+      speed: def.speed * (1 + Math.min(1, level * 0.02)),
       slowUntil: 0, burnUntil: 0, burnDps: 0,
       buffed: this.elapsed < this.monstersBuffedUntil,
       anim: "Walk", animTime: 0, dead: false, contactCd: 0,
       facing: x < this.playerX ? 1 : -1,
+      level,
     });
+  }
+
+  private spawnBossCreature() {
+    const def = this.pickCreature();
+    const level = this.difficulty + this.monsterLevelOffset;
+    const edge = Math.floor(this.rng() * 4);
+    let x: number, y: number;
+    switch (edge) {
+      case 0: x = -100; y = ARENA.top + this.rng() * (ARENA.bottom - ARENA.top); break;
+      case 1: x = ARENA.width + 100; y = ARENA.top + this.rng() * (ARENA.bottom - ARENA.top); break;
+      case 2: x = this.rng() * ARENA.width; y = ARENA.top - 100; break;
+      default: x = this.rng() * ARENA.width; y = ARENA.bottom + 100; break;
+    }
+    const hp = creatureHp(def.baseHp, level) * 8;
+    this.creatures.push({
+      uid: this.nextUid++,
+      def, x, y,
+      hp, maxHp: hp,
+      damage: creatureDamage(def.baseDamage, level) * 2,
+      speed: def.speed * 0.35,
+      slowUntil: 0, burnUntil: 0, burnDps: 0,
+      buffed: this.elapsed < this.monstersBuffedUntil,
+      anim: "Walk", animTime: 0, dead: false, contactCd: 0,
+      facing: x < this.playerX ? 1 : -1,
+      level,
+      isBoss: true,
+    });
+    this.addText(this.playerX, this.playerY - 130, "🚨 DEV BOSS SPAWN EDİLDİ! 🚨", "#ef4444");
   }
 
   private updateCreatures(dt: number) {
@@ -315,7 +365,8 @@ export class GameEngine {
 
       // Temas hasari (beden carpismasi)
       c.contactCd -= dt;
-      if (dist <= 45 && c.contactCd <= 0) {
+      const contactDist = c.isBoss ? 110 : 45;
+      if (dist <= contactDist && c.contactCd <= 0) {
         c.contactCd = PLAYER_BASE.contactDamageInterval;
         const dmg = Math.max(1, Math.floor(c.damage * buffMult * this.damageTakenMult));
         this.hp -= dmg;
@@ -601,7 +652,8 @@ export class GameEngine {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       for (const c of this.aliveCreatures()) {
-        if (Math.hypot(c.x - p.x, c.y - p.y) <= p.hitRadius) {
+        const hitRadius = c.isBoss ? 100 : p.hitRadius;
+        if (Math.hypot(c.x - p.x, c.y - p.y) <= hitRadius) {
           this.damageCreature(c, p.damage, true);
           p.alive = false;
           break;

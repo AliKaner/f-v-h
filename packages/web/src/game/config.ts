@@ -182,4 +182,6 @@ export const DEBUFFS: DebuffDef[] = [
   { id: "weaken", name: "Zayıflatma", desc: "Rakip %30 az hasar vurur (10sn)", cost: 120, emoji: "🥀", duration: 10 },
   { id: "steal", name: "Altın Hırsızı", desc: "Rakibin altınının %25'ini çal", cost: 150, emoji: "🪙", duration: 0 },
   { id: "buffMonsters", name: "Kan Büyüsü", desc: "Rakip yaratıkları %50 güçlenir (15sn)", cost: 200, emoji: "🩸", duration: 15 },
+  { id: "levelUpMonsters", name: "Canavar Seviyesi +1", desc: "Rakibin yaratıklarını kalıcı olarak level atlatır", cost: 120, emoji: "💀", duration: 0 },
+  { id: "spawnBoss", name: "Boss Çağır", desc: "Rakibe dev bir boss yollar (5x boyut, dev can, yavaş)", cost: 250, emoji: "👹", duration: 0 },
 ];

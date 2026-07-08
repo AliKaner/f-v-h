@@ -13,6 +13,8 @@ export interface OppCreature {
   s: string; // sprite id
   f: number; // facing (1/-1)
   hp: number; // 0..1
+  lvl?: number;
+  isBoss?: boolean;
 }
 export interface OppSnapshot {
   x: number;
@@ -117,15 +119,59 @@ export function render(ctx: CanvasRenderingContext2D, g: GameEngine, sprites: Sp
       y: c.y,
       draw: () => {
         const set = sprites.creatures.get(c.def.sprite);
-        drawSprite(ctx, set, c.dead ? "Death" : c.anim, c.animTime, c.x, c.y + 40, c.def.scale, c.facing === -1);
+        const finalScale = c.def.scale * (c.isBoss ? 5 : 1);
+
+        // Draw Level Aura if c.level > 0
+        if (!c.dead && c.level && c.level > 0) {
+          ctx.save();
+          // Aura color changes at 2, 5, 10
+          let auraColor = "rgba(168, 85, 247, 0.25)"; // Tier 1: Purple (< 2)
+          if (c.level >= 10) {
+            auraColor = "rgba(234, 179, 8, 0.6)"; // Tier 4: Gold (>= 10)
+          } else if (c.level >= 5) {
+            auraColor = "rgba(249, 115, 22, 0.45)"; // Tier 3: Orange-Red (>= 5)
+          } else if (c.level >= 2) {
+            auraColor = "rgba(6, 182, 212, 0.35)"; // Tier 2: Cyan (>= 2)
+          }
+
+          const pulse = 1 + Math.sin((c.animTime ?? 0) * 5) * 0.15;
+          const auraRadius = 30 * finalScale * pulse;
+
+          const grad = ctx.createRadialGradient(c.x, c.y + 35, 2, c.x, c.y + 35, auraRadius);
+          grad.addColorStop(0, auraColor);
+          grad.addColorStop(0.5, auraColor.replace(/[\d\.]+\)$/, "0.15)"));
+          grad.addColorStop(1, "rgba(0,0,0,0)");
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.ellipse(c.x, c.y + 35, auraRadius, auraRadius * 0.4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        drawSprite(ctx, set, c.dead ? "Death" : c.anim, c.animTime, c.x, c.y + 40, finalScale, c.facing === -1);
+
         if (!c.dead) {
-          const w = 50;
-          const barY = c.y - 60 * c.def.scale;
+          const w = c.isBoss ? 150 : 50;
+          const h = c.isBoss ? 8 : 5;
+          const barY = c.y - 60 * finalScale;
           ctx.fillStyle = "#00000088";
-          ctx.fillRect(c.x - w / 2, barY, w, 5);
-          ctx.fillStyle = c.buffed ? "#ef4444" : "#4ade80";
-          ctx.fillRect(c.x - w / 2, barY, w * Math.max(0, c.hp / c.maxHp), 5);
+          ctx.fillRect(c.x - w / 2, barY, w, h);
+          ctx.fillStyle = c.isBoss ? "#f43f5e" : (c.buffed ? "#ef4444" : "#4ade80");
+          ctx.fillRect(c.x - w / 2, barY, w * Math.max(0, c.hp / c.maxHp), h);
+
           if (c.buffed) { ctx.font = "12px serif"; ctx.fillText("🩸", c.x + w / 2 + 10, barY + 6); }
+
+          if (c.isBoss) {
+            ctx.font = "bold 11px sans-serif";
+            ctx.fillStyle = "#f43f5e";
+            ctx.fillText("👑 BOSS", c.x, barY - 6);
+          }
+
+          // Level text next to health bar
+          ctx.font = "bold 9px sans-serif";
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(`Lvl ${c.level}`, c.x - w / 2 - 18, barY + (c.isBoss ? 7 : 5));
         }
       },
     });
@@ -259,13 +305,58 @@ export function renderOpponentView(
       y: c.y,
       draw: () => {
         const set = sprites.creatures.get(c.s);
-        const scale = scaleOf.get(c.s) ?? 1;
+        const baseScale = scaleOf.get(c.s) ?? 1;
+        const scale = baseScale * (c.isBoss ? 5 : 1);
+
+        // Draw Opponent Creature level aura if c.lvl > 0
+        if (c.lvl && c.lvl > 0) {
+          ctx.save();
+          // Aura color changes at 2, 5, 10
+          let auraColor = "rgba(168, 85, 247, 0.25)"; // Tier 1: Purple (< 2)
+          if (c.lvl >= 10) {
+            auraColor = "rgba(234, 179, 8, 0.6)"; // Tier 4: Gold (>= 10)
+          } else if (c.lvl >= 5) {
+            auraColor = "rgba(249, 115, 22, 0.45)"; // Tier 3: Orange-Red (>= 5)
+          } else if (c.lvl >= 2) {
+            auraColor = "rgba(6, 182, 212, 0.35)"; // Tier 2: Cyan (>= 2)
+          }
+
+          const pulse = 1 + Math.sin(time * 5) * 0.15;
+          const auraRadius = 30 * scale * pulse;
+
+          const grad = ctx.createRadialGradient(c.x, c.y + 35, 2, c.x, c.y + 35, auraRadius);
+          grad.addColorStop(0, auraColor);
+          grad.addColorStop(0.5, auraColor.replace(/[\d\.]+\)$/, "0.15)"));
+          grad.addColorStop(1, "rgba(0,0,0,0)");
+
+          ctx.fillStyle = grad;
+          ctx.beginPath();
+          ctx.ellipse(c.x, c.y + 35, auraRadius, auraRadius * 0.4, 0, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
         drawSprite(ctx, set, "Walk", time, c.x, c.y + 40, scale, c.f === -1);
-        const w = 44;
+
+        const w = c.isBoss ? 100 : 44;
+        const h = c.isBoss ? 6 : 4;
+        const barY = c.y - 60 * scale;
         ctx.fillStyle = "#00000088";
-        ctx.fillRect(c.x - w / 2, c.y - 60 * scale, w, 4);
-        ctx.fillStyle = "#f87171";
-        ctx.fillRect(c.x - w / 2, c.y - 60 * scale, w * Math.max(0, c.hp), 4);
+        ctx.fillRect(c.x - w / 2, barY, w, h);
+        ctx.fillStyle = c.isBoss ? "#f43f5e" : "#f87171";
+        ctx.fillRect(c.x - w / 2, barY, w * Math.max(0, c.hp), h);
+
+        if (c.isBoss) {
+          ctx.font = "bold 9px sans-serif";
+          ctx.fillStyle = "#f43f5e";
+          ctx.fillText("👑 BOSS", c.x, barY - 5);
+        }
+
+        if (c.lvl && c.lvl > 0) {
+          ctx.font = "bold 8px sans-serif";
+          ctx.fillStyle = "#ffffff";
+          ctx.fillText(`Lvl ${c.lvl}`, c.x - w / 2 - 14, barY + (c.isBoss ? 5 : 4));
+        }
       },
     });
   }
