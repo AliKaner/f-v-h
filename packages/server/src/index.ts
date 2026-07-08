@@ -89,7 +89,8 @@ io.on("connection", (socket: Socket) => {
   // Oyun ici olaylar: sadece odadaki DIGER oyuncuya aktar (relay)
   const relayEvents = [
     "game:enemySpawn", // kill basina rakibe 2 yaratik
-    "game:stateSync", // pozisyon/hp/level goruntuleme icin
+    "game:stateSync", // arena goruntusu: pozisyon/hp/level/yaratiklar
+    "game:charSync", // cizilen ozel karakterin pikselleri
     "game:debuffApplied", // saticidan alinan rakip zayiflatmasi
     "game:playerDied",
   ];

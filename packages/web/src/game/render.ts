@@ -2,9 +2,28 @@
 // Karakter duz (Idle/Walk) — saldiri gorselleri silah efektleri olarak cizilir.
 // Varliklar y'ye gore siralanir: asagidaki one cizilir (derinlik hissi).
 
-import { ARENA } from "./config";
+import { ARENA, CREATURES } from "./config";
 import { GameEngine } from "./engine";
 import { drawSprite, type SpriteSet } from "./sprites";
+
+// Rakip arenasindan gelen anlik goruntu (10 Hz snapshot)
+export interface OppCreature {
+  x: number;
+  y: number;
+  s: string; // sprite id
+  f: number; // facing (1/-1)
+  hp: number; // 0..1
+}
+export interface OppSnapshot {
+  x: number;
+  y: number;
+  facing: number;
+  hp: number;
+  maxHp: number;
+  level: number;
+  kills: number;
+  creatures: OppCreature[];
+}
 
 export interface SpriteBundle {
   player: SpriteSet | undefined;
@@ -192,5 +211,93 @@ export function render(ctx: CanvasRenderingContext2D, g: GameEngine, sprites: Sp
     ctx.fillText(t.text, t.x, t.y);
   }
   ctx.globalAlpha = 1;
+  ctx.textAlign = "left";
+}
+
+/** Rakip arenasi — snapshot'tan cizilen izleme goruntusu (kirmizi tonlu) */
+export function renderOpponentView(
+  ctx: CanvasRenderingContext2D,
+  snap: OppSnapshot | null,
+  sprites: SpriteBundle,
+  oppCustom: HTMLCanvasElement | null,
+  time: number,
+) {
+  const { width, height } = ARENA;
+
+  // Arka plan — rakip tarafi kizil tonda
+  const bg = ctx.createRadialGradient(width / 2, height / 2, 100, width / 2, height / 2, width * 0.7);
+  bg.addColorStop(0, "#2d1a1f");
+  bg.addColorStop(1, "#160d11");
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = "#ffffff06";
+  for (let x = 0; x < width; x += 80) {
+    ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke();
+  }
+  for (let y = 0; y < height; y += 80) {
+    ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke();
+  }
+
+  ctx.textAlign = "center";
+
+  if (!snap) {
+    ctx.fillStyle = "#8b8b9e";
+    ctx.font = "24px sans-serif";
+    ctx.fillText("Rakip bekleniyor...", width / 2, height / 2);
+    ctx.textAlign = "left";
+    return;
+  }
+
+  const scaleOf = new Map(CREATURES.map((c) => [c.sprite, c.scale]));
+
+  // y'ye gore sirala (derinlik)
+  const items: { y: number; draw: () => void }[] = [];
+
+  for (const c of snap.creatures) {
+    items.push({
+      y: c.y,
+      draw: () => {
+        const set = sprites.creatures.get(c.s);
+        const scale = scaleOf.get(c.s) ?? 1;
+        drawSprite(ctx, set, "Walk", time, c.x, c.y + 40, scale, c.f === -1);
+        const w = 44;
+        ctx.fillStyle = "#00000088";
+        ctx.fillRect(c.x - w / 2, c.y - 60 * scale, w, 4);
+        ctx.fillStyle = "#f87171";
+        ctx.fillRect(c.x - w / 2, c.y - 60 * scale, w * Math.max(0, c.hp), 4);
+      },
+    });
+  }
+
+  items.push({
+    y: snap.y,
+    draw: () => {
+      if (oppCustom) {
+        const y = snap.y + 40 - oppCustom.height;
+        if (snap.facing === -1) {
+          ctx.save();
+          ctx.translate(snap.x, 0);
+          ctx.scale(-1, 1);
+          ctx.drawImage(oppCustom, -oppCustom.width / 2, y);
+          ctx.restore();
+        } else {
+          ctx.drawImage(oppCustom, snap.x - oppCustom.width / 2, y);
+        }
+      } else {
+        drawSprite(ctx, sprites.player, "Idle", time, snap.x, snap.y + 40, 1, snap.facing === -1);
+      }
+      // Rakip HP cubugu
+      const w = 60;
+      ctx.fillStyle = "#00000088";
+      ctx.fillRect(snap.x - w / 2, snap.y - 70, w, 6);
+      ctx.fillStyle = "#f87171";
+      ctx.fillRect(snap.x - w / 2, snap.y - 70, w * Math.max(0, snap.hp / snap.maxHp), 6);
+    },
+  });
+
+  items.sort((a, b) => a.y - b.y);
+  for (const it of items) it.draw();
+
   ctx.textAlign = "left";
 }

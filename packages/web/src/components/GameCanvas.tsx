@@ -1,10 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { GameEngine, type LevelUpChoice } from "../game/engine";
-import { render, type SpriteBundle } from "../game/render";
+import { render, renderOpponentView, type SpriteBundle, type OppSnapshot } from "../game/render";
 import { loadCreatureSprites } from "../game/sprites";
 import { ARENA, CREATURES, DEBUFFS } from "../game/config";
 import { getSocket } from "../socket";
-import { loadCharacter, characterToCanvas } from "./CharacterEditor";
+import { loadCharacter, characterToCanvas, type PixelGrid } from "./CharacterEditor";
 
 interface OpponentInfo {
   hp: number;
@@ -15,6 +15,9 @@ interface OpponentInfo {
 
 export default function GameCanvas({ seed }: { seed: number }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const oppCanvasRef = useRef<HTMLCanvasElement>(null);
+  const oppSnapshotRef = useRef<OppSnapshot | null>(null);
+  const oppCustomRef = useRef<HTMLCanvasElement | null>(null);
   const engineRef = useRef<GameEngine | null>(null);
   // Level-up secimleri kuyrugu — oyun DURMAZ, panel akarken gosterilir
   const [choiceQueue, setChoiceQueue] = useState<LevelUpChoice[][]>([]);
@@ -41,7 +44,15 @@ export default function GameCanvas({ seed }: { seed: number }) {
     // --- Socket olaylari ---
     const onEnemySpawn = (data: { count: number }) => engine.queueEnemySpawns(data.count ?? 2);
     const onDebuff = (data: { id: string }) => engine.applyDebuff(data.id);
-    const onStateSync = (data: OpponentInfo) => setOpponent(data);
+    const onStateSync = (data: OppSnapshot) => {
+      oppSnapshotRef.current = data;
+      setOpponent({ hp: data.hp, maxHp: data.maxHp, level: data.level, kills: data.kills });
+    };
+    const onCharSync = (data: { pixels: PixelGrid }) => {
+      if (Array.isArray(data?.pixels) && data.pixels.some((p) => p !== null)) {
+        oppCustomRef.current = characterToCanvas(data.pixels, 6);
+      }
+    };
     const onGameOver = (data: { loserSocketId: string }) => {
       engine.gameOver = true;
       setResult(data.loserSocketId === socket.id ? "lose" : "win");
@@ -49,14 +60,35 @@ export default function GameCanvas({ seed }: { seed: number }) {
     socket.on("game:enemySpawn", onEnemySpawn);
     socket.on("game:debuffApplied", onDebuff);
     socket.on("game:stateSync", onStateSync);
+    socket.on("game:charSync", onCharSync);
     socket.on("game:over", onGameOver);
 
-    // Rakibe durum yayini (5 Hz)
+    // Cizilen karakteri rakibe gonder (baglanti sirasi garantisi icin iki kez)
+    const myPixels = loadCharacter();
+    const sendChar = () => {
+      if (myPixels && myPixels.some((p) => p !== null)) {
+        socket.emit("game:charSync", { pixels: myPixels });
+      }
+    };
+    const charTimer1 = setTimeout(sendChar, 500);
+    const charTimer2 = setTimeout(sendChar, 3000);
+
+    // Rakibe arena durumu yayini (10 Hz): pozisyon + yaratiklar
     const syncTimer = setInterval(() => {
-      socket.emit("game:stateSync", {
+      const snapshot: OppSnapshot = {
         hp: engine.hp, maxHp: engine.maxHp, level: engine.level, kills: engine.kills,
-      });
-    }, 200);
+        x: engine.playerX, y: engine.playerY, facing: engine.facing,
+        creatures: engine.creatures
+          .filter((c) => !c.dead)
+          .slice(0, 150)
+          .map((c) => ({
+            x: Math.round(c.x), y: Math.round(c.y),
+            s: c.def.sprite, f: c.facing,
+            hp: Math.round((c.hp / c.maxHp) * 100) / 100,
+          })),
+      };
+      socket.emit("game:stateSync", snapshot);
+    }, 100);
     const hudTimer = setInterval(() => forceHud((n) => n + 1), 100);
 
     // --- Klavye: WASD + ok tuslari (2D hareket), E satici, 1/2/3 secim ---
@@ -111,6 +143,11 @@ export default function GameCanvas({ seed }: { seed: number }) {
         engine.update(dt);
         const ctx = canvasRef.current?.getContext("2d");
         if (ctx) render(ctx, engine, sprites);
+        // Rakip arenasi (snapshot'tan canli izleme)
+        const oppCtx = oppCanvasRef.current?.getContext("2d");
+        if (oppCtx) {
+          renderOpponentView(oppCtx, oppSnapshotRef.current, sprites, oppCustomRef.current, now / 1000);
+        }
         raf = requestAnimationFrame(loop);
       };
       raf = requestAnimationFrame(loop);
@@ -121,11 +158,14 @@ export default function GameCanvas({ seed }: { seed: number }) {
       cancelAnimationFrame(raf);
       clearInterval(syncTimer);
       clearInterval(hudTimer);
+      clearTimeout(charTimer1);
+      clearTimeout(charTimer2);
       window.removeEventListener("keydown", down);
       window.removeEventListener("keyup", up);
       socket.off("game:enemySpawn", onEnemySpawn);
       socket.off("game:debuffApplied", onDebuff);
       socket.off("game:stateSync", onStateSync);
+      socket.off("game:charSync", onCharSync);
       socket.off("game:over", onGameOver);
     };
   }, [seed]);
@@ -150,7 +190,7 @@ export default function GameCanvas({ seed }: { seed: number }) {
   const oppHpPct = opponent ? Math.max(0, opponent.hp / opponent.maxHp) : 1;
 
   return (
-    <div style={{ position: "relative", width: ARENA.width, margin: "0 auto" }}>
+    <div style={{ position: "relative", width: "100vw", maxWidth: 1600, margin: "0 auto", padding: "0 8px" }}>
       {/* ---- Ust HUD ---- */}
       <div style={hud.bar}>
         {/* Sen */}
@@ -194,7 +234,27 @@ export default function GameCanvas({ seed }: { seed: number }) {
         </div>
       </div>
 
-      <canvas ref={canvasRef} width={ARENA.width} height={ARENA.height} style={{ display: "block" }} />
+      {/* ---- Iki arena yan yana ---- */}
+      <div style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
+        <div style={{ flex: 1.5, minWidth: 0 }}>
+          <div style={hud.arenaLabel}>⚔️ SENİN ARENAN</div>
+          <canvas
+            ref={canvasRef}
+            width={ARENA.width}
+            height={ARENA.height}
+            style={{ display: "block", width: "100%", border: "1px solid #2b2340", borderRadius: "0 0 8px 8px" }}
+          />
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ ...hud.arenaLabel, background: "#2d12188f", color: "#f87171" }}>👁️ RAKİP ARENASI</div>
+          <canvas
+            ref={oppCanvasRef}
+            width={ARENA.width}
+            height={ARENA.height}
+            style={{ display: "block", width: "100%", border: "1px solid #402330", borderRadius: "0 0 8px 8px", opacity: 0.95 }}
+          />
+        </div>
+      </div>
 
       {/* ---- Alt bar: envanter ---- */}
       <div style={hud.inventory}>
@@ -322,6 +382,11 @@ const hud: Record<string, React.CSSProperties> = {
   },
   slotLvl: {
     position: "absolute", bottom: 1, right: 4, fontSize: 10, fontWeight: 800, color: "#c084fc",
+  },
+  arenaLabel: {
+    fontSize: 11, fontWeight: 800, letterSpacing: 2, padding: "5px 12px",
+    background: "#1c1433", color: "#c084fc", borderRadius: "8px 8px 0 0",
+    border: "1px solid #2b2340", borderBottom: "none",
   },
   levelUpPanel: {
     position: "absolute", top: 70, left: "50%", transform: "translateX(-50%)",
