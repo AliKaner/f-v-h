@@ -1,0 +1,9 @@
+# Render.com blueprint — Socket.io sunucusu (WebSocket destekli, free tier calisir)
+services:
+  - type: web
+    name: fvh-server
+    runtime: node
+    plan: free
+    buildCommand: corepack enable && corepack prepare pnpm@9.15.9 --activate && pnpm install --frozen-lockfile && pnpm --filter @game/shared build && pnpm --filter @game/server build
+    startCommand: node packages/server/dist/index.js
+    healthCheckPath: /health

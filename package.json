@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "private": true,
   "description": "Real-time PvP Vampire Survivors-like game",
-  "packageManager": "pnpm@9.0.0",
+  "packageManager": "pnpm@9.15.9",
   "scripts": {
     "dev": "turbo run dev --no-cache",
     "build": "turbo run build",
