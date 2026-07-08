@@ -1,6 +1,0 @@
-{
-  "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "turbo run build --filter=@game/web",
-  "outputDirectory": "packages/web/dist",
-  "installCommand": "pnpm install"
-}
