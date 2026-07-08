@@ -133,8 +133,8 @@ export function render(ctx: CanvasRenderingContext2D, g: GameEngine, sprites: Sp
 
   // Arka plan
   const bg = ctx.createRadialGradient(width / 2, height / 2, 100, width / 2, height / 2, width * 0.7);
-  bg.addColorStop(0, "#241f31");
-  bg.addColorStop(1, "#141019");
+  bg.addColorStop(0, "#1a1112");
+  bg.addColorStop(1, "#090606");
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);
 
@@ -539,7 +539,7 @@ export function renderSnapshotEntities(
         const w = Math.min(120, 44 * scale);
         ctx.fillStyle = "#00000088";
         ctx.fillRect(c.x - w / 2, c.y - 60 * scale, w, 4);
-        ctx.fillStyle = hostile ? "#f87171" : "#4ade80";
+        ctx.fillStyle = hostile ? "#ef4444" : "#d4a017";
         ctx.fillRect(c.x - w / 2, c.y - 60 * scale, w * Math.max(0, c.hp), 4);
         if (c.say) drawBubble(ctx, c.x, c.y - 60 * scale - 8, c.say);
       },
@@ -555,13 +555,13 @@ export function renderSnapshotEntities(
         // isim etiketi
         if (snap.name) {
           ctx.font = "700 12px 'Segoe UI', sans-serif";
-          ctx.fillStyle = hostile ? "#f87171" : "#4ade80";
+          ctx.fillStyle = hostile ? "#ef4444" : "#d4a017";
           ctx.fillText(snap.name, snap.x, snap.y - 78);
         }
         const w = 60;
         ctx.fillStyle = "#00000088";
         ctx.fillRect(snap.x - w / 2, snap.y - 72, w, 6);
-        ctx.fillStyle = hostile ? "#f87171" : "#4ade80";
+        ctx.fillStyle = hostile ? "#ef4444" : "#d4a017";
         ctx.fillRect(snap.x - w / 2, snap.y - 72, w * Math.max(0, snap.hp / snap.maxHp), 6);
         if (snap.say) drawBubble(ctx, snap.x, snap.y - 92, snap.say);
       },
@@ -585,11 +585,11 @@ export function renderTeamView(
 
   const bg = ctx.createRadialGradient(width / 2, height / 2, 100, width / 2, height / 2, width * 0.7);
   if (hostile) {
-    bg.addColorStop(0, "#2d1a1f");
-    bg.addColorStop(1, "#160d11");
+    bg.addColorStop(0, "#2b0f12");
+    bg.addColorStop(1, "#120708");
   } else {
-    bg.addColorStop(0, "#1a2d22");
-    bg.addColorStop(1, "#0d1611");
+    bg.addColorStop(0, "#1a1112");
+    bg.addColorStop(1, "#090606");
   }
   ctx.fillStyle = bg;
   ctx.fillRect(0, 0, width, height);

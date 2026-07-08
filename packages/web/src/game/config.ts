@@ -42,6 +42,10 @@ export function xpToNextLevel(level: number): number {
 export function spawnInterval(difficulty: number): number {
   return Math.max(2.5, 10 / (1 + difficulty * 0.1));
 }
+// Spawn tick basina kac yaratik cikar — zamanla dalga buyur
+export function spawnBurst(difficulty: number): number {
+  return 1 + Math.floor(difficulty / 6);
+}
 // Zorluk: oyun suresi ile artar (her 30 saniyede +1) (hızlandırıldı)
 export function difficultyAt(elapsedSec: number): number {
   return Math.floor(elapsedSec / 30);
@@ -174,6 +178,7 @@ export const MOB_LINES = [
   "annen selam söyledi",
   "bu harita çok büyük",
   "yürümekten öldüm zaten",
+  "oyoyoyoy",
 ];
 
 // Olurken soyledikleri (yuzen yazi olarak cikar)
@@ -187,6 +192,13 @@ export const MOB_DEATH_LINES = [
   "hakkımı helal etmiyorum",
   "en azından denedim",
   "mola hakkımdı bu",
+  "matcha'ya bayılırım amına",
+  "hülooo",
+  "benim adım ismail",
+  "mesai bitmedi daha",
+  "ben yürüdüm beyler",
+  "olum bak git!!!",
+  "oyoyoyoy...",
 ];
 
 // Korkak moblar — oyuncudan KACAR (komedi)

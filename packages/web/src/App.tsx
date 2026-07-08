@@ -105,7 +105,7 @@ export default function App() {
             <span style={{ ...st.dot, background: color }} />
             <b style={{ flex: 1, textAlign: "left" }}>{p.name}</b>
             {p.isHost && <span style={st.hostTag}>HOST</span>}
-            {p.id === myId && <span style={{ ...st.hostTag, background: "#7c3aed" }}>SEN</span>}
+            {p.id === myId && <span style={{ ...st.hostTag, background: "#b91c1c", color: "#e3ddd2" }}>SEN</span>}
           </div>
         ))}
         {me?.team !== team && (
@@ -129,9 +129,9 @@ export default function App() {
           </button>
 
           <div style={{ display: "flex", gap: 14, margin: "22px 0" }}>
-            <TeamCol team={0} list={team0} color="#818cf8" />
-            <div style={{ display: "flex", alignItems: "center", fontWeight: 900, fontSize: 22, opacity: 0.4 }}>VS</div>
-            <TeamCol team={1} list={team1} color="#f87171" />
+            <TeamCol team={0} list={team0} color="#b8860b" />
+            <div style={{ display: "flex", alignItems: "center", fontWeight: 900, fontSize: 22, opacity: 0.4, fontFamily: "Cinzel, serif" }}>VS</div>
+            <TeamCol team={1} list={team1} color="#b91c1c" />
           </div>
 
           {isHost ? (
@@ -192,8 +192,8 @@ export default function App() {
               onClick={() => setHero(h.id)}
               style={{
                 ...st.heroCard,
-                borderColor: hero === h.id ? "#7c3aed" : "#2b2340",
-                boxShadow: hero === h.id ? "0 0 20px #7c3aed66" : "none",
+                borderColor: hero === h.id ? "#b91c1c" : "#33272a",
+                boxShadow: hero === h.id ? "0 0 20px rgba(185,28,28,0.45)" : "none",
               }}
             >
               <div style={{ ...st.heroSprite, backgroundImage: `url(/assets/creatures/${h.id}/Idle.png)` }} />
@@ -235,7 +235,7 @@ export default function App() {
           ["ENTER", "Chat — mesajın karakterinin üstünde belirir"],
         ].map(([k, d]) => (
           <div key={k} className="card" style={{ padding: "14px 18px", width: 220 }}>
-            <div style={{ color: "#c084fc", fontWeight: 800, fontSize: 14, marginBottom: 4 }}>{k}</div>
+            <div style={{ color: "#ef4444", fontWeight: 800, fontSize: 14, marginBottom: 4, fontFamily: "Cinzel, serif", letterSpacing: 1 }}>{k}</div>
             <div style={{ fontSize: 12, opacity: 0.7, lineHeight: 1.5 }}>{d}</div>
           </div>
         ))}
@@ -244,24 +244,29 @@ export default function App() {
   );
 }
 
+// Gotik tema: kirmizi & siyah, gradient yok, keskin hatlar
 const st: Record<string, React.CSSProperties> = {
   page: {
     minHeight: "100vh", display: "flex", flexDirection: "column",
     alignItems: "center", justifyContent: "center",
-    background: "radial-gradient(ellipse at 50% 30%, #1c1230 0%, #0a0812 70%)",
+    background: "#060505",
     position: "relative",
   },
   bgDecor: { position: "fixed", inset: 0, pointerEvents: "none" },
   bgSprite: {
     position: "absolute", width: 100, height: 100,
     backgroundPosition: "0 0", backgroundRepeat: "no-repeat",
-    opacity: 0.1, imageRendering: "pixelated", transform: "scale(1.4)",
+    opacity: 0.08, imageRendering: "pixelated", transform: "scale(1.4)",
+    filter: "sepia(1) saturate(3) hue-rotate(-40deg)", // kizil golgeler
   },
   card: { padding: "32px 40px", width: 480, zIndex: 1 },
-  label: { display: "block", fontSize: 11, fontWeight: 800, letterSpacing: 2, opacity: 0.5, marginBottom: 8 },
+  label: {
+    display: "block", fontSize: 11, fontWeight: 800, letterSpacing: 3,
+    color: "#857c74", marginBottom: 8, fontFamily: "Cinzel, serif",
+  },
   heroCard: {
-    flex: 1, background: "#0f0c18", border: "2px solid #2b2340", borderRadius: 12,
-    padding: "10px 6px", cursor: "pointer", color: "#e8e8f0", transition: "all .15s",
+    flex: 1, background: "#0e0b0b", border: "2px solid #33272a", borderRadius: 0,
+    padding: "10px 6px", cursor: "pointer", color: "#e3ddd2", transition: "all .15s",
   },
   heroSprite: {
     width: 100, height: 100, margin: "0 auto",
@@ -269,24 +274,27 @@ const st: Record<string, React.CSSProperties> = {
     imageRendering: "pixelated",
   },
   divider: { display: "flex", alignItems: "center", marginBottom: 16 },
-  dividerLine: { flex: 1, height: 1, background: "#2b2340" },
+  dividerLine: { flex: 1, height: 1, background: "#33272a" },
   code: {
-    fontSize: 52, fontWeight: 800, letterSpacing: 16,
-    background: "#0f0c18", border: "2px solid #7c3aed",
-    padding: "18px 20px 18px 36px", borderRadius: 14,
-    boxShadow: "0 0 40px #7c3aed33",
+    fontSize: 52, fontWeight: 700, letterSpacing: 16,
+    background: "#0e0b0b", border: "1px solid #b91c1c",
+    outline: "1px solid #000", outlineOffset: 3,
+    padding: "18px 20px 18px 36px", borderRadius: 0,
+    boxShadow: "0 0 34px rgba(185,28,28,0.3)",
+    fontFamily: "Cinzel, serif", color: "#ef4444",
   },
   teamCol: {
-    flex: 1, background: "#0f0c18", border: "2px solid", borderRadius: 14,
+    flex: 1, background: "#0e0b0b", border: "2px solid", borderRadius: 0,
     padding: 14, minHeight: 160,
   },
   playerRow: {
     display: "flex", alignItems: "center", gap: 8, padding: "7px 10px",
-    background: "#1c1728", borderRadius: 8, marginBottom: 6, fontSize: 14,
+    background: "#1c1415", border: "1px solid #33272a", borderRadius: 0,
+    marginBottom: 6, fontSize: 14,
   },
-  dot: { width: 8, height: 8, borderRadius: 4, flexShrink: 0 },
+  dot: { width: 8, height: 8, borderRadius: 0, flexShrink: 0, transform: "rotate(45deg)" },
   hostTag: {
-    fontSize: 9, fontWeight: 800, background: "#eab308", color: "#0a0812",
-    borderRadius: 4, padding: "2px 6px", letterSpacing: 1,
+    fontSize: 9, fontWeight: 800, background: "#b8860b", color: "#060505",
+    borderRadius: 0, padding: "2px 6px", letterSpacing: 1,
   },
 };

@@ -3,79 +3,177 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Horde Survivors: PvP Arena</title>
+    <title>Horde Survivors</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Cinzel:wght@500;700;900&family=UnifrakturCologne&display=swap"
+      rel="stylesheet"
+    />
     <style>
+      /* ============================================
+         HORDE SURVIVORS — GOTHIC TASARIM SISTEMI
+         Kirmizi & siyah. Gradient yok. Keskin hatlar.
+         ============================================ */
+      :root {
+        --black: #060505;
+        --coal: #0e0b0b;
+        --panel: #151011;
+        --panel-2: #1c1415;
+        --border: #33272a;
+        --blood: #7f1d1d;
+        --red: #b91c1c;
+        --red-bright: #ef4444;
+        --bone: #e3ddd2;
+        --ash: #857c74;
+        --gold: #b8860b;
+      }
+
       * { margin: 0; padding: 0; box-sizing: border-box; }
+
       body {
-        background: #0a0812;
-        color: #e8e8f0;
-        font-family: 'Segoe UI', system-ui, sans-serif;
+        background: var(--black);
+        color: var(--bone);
+        font-family: "Segoe UI", system-ui, sans-serif;
         overflow: hidden;
       }
       canvas { image-rendering: pixelated; }
 
-      /* ---- Tasarim sistemi ---- */
-      .btn {
-        background: linear-gradient(135deg, #7c3aed, #5b21b6);
-        color: white;
-        border: none;
-        padding: 14px 36px;
-        font-size: 17px;
-        font-weight: 600;
-        border-radius: 10px;
-        cursor: pointer;
-        transition: transform .12s, box-shadow .12s, filter .12s;
-        box-shadow: 0 4px 20px #7c3aed44;
+      ::selection { background: var(--blood); color: var(--bone); }
+
+      ::-webkit-scrollbar { width: 10px; height: 10px; }
+      ::-webkit-scrollbar-track { background: var(--coal); }
+      ::-webkit-scrollbar-thumb { background: var(--blood); border: 2px solid var(--coal); }
+      ::-webkit-scrollbar-thumb:hover { background: var(--red); }
+
+      h1, h2, h3 {
+        font-family: "Cinzel", serif;
+        font-weight: 700;
+        letter-spacing: 2px;
+        color: var(--bone);
       }
-      .btn:hover { transform: translateY(-2px); filter: brightness(1.15); box-shadow: 0 6px 28px #7c3aed66; }
-      .btn:active { transform: translateY(0); }
+
+      /* Ana baslik — blackletter, kan kirmizisi */
+      .title-glow {
+        font-family: "UnifrakturCologne", "Cinzel", serif;
+        font-weight: 400;
+        color: var(--red-bright);
+        letter-spacing: 3px;
+        text-shadow:
+          0 0 2px #000,
+          2px 2px 0 #000,
+          0 0 18px rgba(185, 28, 28, 0.55);
+      }
+
+      /* ---- Butonlar: keskin, cerceveli, gotik ---- */
+      .btn {
+        font-family: "Cinzel", serif;
+        font-weight: 700;
+        letter-spacing: 2px;
+        text-transform: uppercase;
+        background: var(--blood);
+        color: var(--bone);
+        border: 1px solid var(--red);
+        outline: 1px solid #000;
+        outline-offset: 2px;
+        padding: 13px 34px;
+        font-size: 15px;
+        border-radius: 0;
+        cursor: pointer;
+        transition: background .12s, color .12s, box-shadow .12s;
+        box-shadow: inset 0 0 0 1px #00000066, 0 4px 16px #000000aa;
+      }
+      .btn:hover {
+        background: var(--red);
+        box-shadow: inset 0 0 0 1px #00000066, 0 0 22px rgba(185, 28, 28, 0.5);
+      }
+      .btn:active { background: #641414; }
+
       .btn.ghost {
-        background: #1c1728;
-        border: 1px solid #3b2f52;
+        background: var(--panel);
+        color: var(--bone);
+        border: 1px solid var(--border);
+        outline: none;
+        text-transform: none;
+        font-family: "Segoe UI", system-ui, sans-serif;
+        font-weight: 600;
+        letter-spacing: 0;
         box-shadow: none;
       }
-      .btn.ghost:hover { border-color: #7c3aed; }
-
-      .card {
-        background: #141020ee;
-        border: 1px solid #2b2340;
-        border-radius: 16px;
-        box-shadow: 0 20px 60px #00000088;
+      .btn.ghost:hover {
+        border-color: var(--red);
+        background: var(--panel-2);
+        box-shadow: 0 0 14px rgba(185, 28, 28, 0.25);
       }
 
+      /* ---- Panel: siyah tas, cift cerceve ---- */
+      .card {
+        background: var(--panel);
+        border: 1px solid var(--border);
+        outline: 1px solid #000;
+        outline-offset: 3px;
+        border-radius: 0;
+        box-shadow: 0 24px 60px #000000e6, inset 0 0 60px #00000080;
+        position: relative;
+      }
+      /* kose sivri suslemeleri */
+      .card::before, .card::after {
+        content: "";
+        position: absolute;
+        width: 14px; height: 14px;
+        border: 2px solid var(--blood);
+        pointer-events: none;
+      }
+      .card::before { top: -5px; left: -5px; border-right: none; border-bottom: none; }
+      .card::after { bottom: -5px; right: -5px; border-left: none; border-top: none; }
+
+      /* ---- Kod / metin girisleri ---- */
       .code-input {
-        background: #0f0c18;
-        color: #e8e8f0;
-        border: 2px solid #2b2340;
-        padding: 14px 18px;
+        background: var(--coal);
+        color: var(--bone);
+        border: 1px solid var(--border);
+        border-bottom: 2px solid var(--blood);
+        padding: 13px 16px;
         font-size: 22px;
         font-weight: 700;
-        border-radius: 10px;
+        border-radius: 0;
         width: 160px;
         text-align: center;
         letter-spacing: 8px;
         outline: none;
-        transition: border-color .15s;
+        transition: border-color .15s, box-shadow .15s;
         text-transform: uppercase;
+        font-family: "Cinzel", serif;
       }
-      .code-input:focus { border-color: #7c3aed; }
+      .code-input:focus {
+        border-color: var(--red);
+        box-shadow: 0 0 16px rgba(185, 28, 28, 0.35);
+      }
+      .code-input::placeholder { color: var(--ash); }
 
-      .title-glow {
-        background: linear-gradient(135deg, #c084fc, #7c3aed, #e879f9);
-        -webkit-background-clip: text;
-        background-clip: text;
-        color: transparent;
-        filter: drop-shadow(0 0 24px #7c3aed55);
+      kbd {
+        font-family: "Segoe UI", system-ui, sans-serif;
       }
 
-      @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .55 } }
-      .pulse { animation: pulse 1.6s ease-in-out infinite; }
+      /* ---- Animasyonlar ---- */
+      @keyframes pulse { 0%,100% { opacity: 1 } 50% { opacity: .5 } }
+      .pulse { animation: pulse 1.8s ease-in-out infinite; }
 
-      @keyframes slideDown { from { transform: translateY(-16px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
-      .slide-down { animation: slideDown .25s ease-out; }
+      @keyframes slideDown { from { transform: translateY(-14px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }
+      .slide-down { animation: slideDown .22s ease-out; }
 
       @keyframes float { 0%,100% { transform: translateY(0) } 50% { transform: translateY(-8px) } }
-      .float { animation: float 3s ease-in-out infinite; }
+      .float { animation: float 3.4s ease-in-out infinite; }
+
+      @keyframes flicker {
+        0%, 100% { opacity: 1 }
+        92% { opacity: 1 }
+        93% { opacity: .6 }
+        94% { opacity: 1 }
+        97% { opacity: .75 }
+        98% { opacity: 1 }
+      }
+      .flicker { animation: flicker 6s infinite; }
     </style>
   </head>
   <body>

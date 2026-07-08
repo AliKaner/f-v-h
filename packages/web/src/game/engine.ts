@@ -8,7 +8,7 @@ import {
   ARENA, PLAYER_BASE, CREATURES, WEAPONS, BOOKS,
   MOB_LINES, MOB_DEATH_LINES, COWARD_CHANCE, COWARD_LINES,
   creatureHp, creatureDamage, goldDrop, xpDrop, xpToNextLevel,
-  spawnInterval, difficultyAt, weaponDamage, weaponCooldown,
+  spawnInterval, spawnBurst, difficultyAt, weaponDamage, weaponCooldown,
   type CreatureDef, type WeaponDef, type BookDef, type WeaponType, type BookType,
 } from "./config";
 
@@ -335,7 +335,11 @@ export class GameEngine {
     this.spawnTimer -= dt;
     if (this.spawnTimer <= 0) {
       this.spawnTimer = spawnInterval(this.difficulty);
-      if (this.creatures.length < ARENA.maxCreatures) this.spawnCreature(false);
+      // Zamanla dalga buyur: tick basina birden fazla yaratik
+      let burst = spawnBurst(this.difficulty);
+      while (burst-- > 0 && this.creatures.length < ARENA.maxCreatures) {
+        this.spawnCreature(false);
+      }
     }
     this.pendingReleaseTimer -= dt;
     if (this.pendingSpawns > 0 && this.pendingReleaseTimer <= 0 && this.creatures.length < ARENA.maxCreatures) {

@@ -320,7 +320,7 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
           <b style={{ fontSize: 13 }}>{myName}</b>
           <div style={{ flex: 1, maxWidth: 260 }}>
             <div style={st.hpOuter}>
-              <div style={{ ...st.hpInner, width: `${hpPct * 100}%`, background: hpPct > 0.35 ? "linear-gradient(90deg,#22c55e,#4ade80)" : "linear-gradient(90deg,#dc2626,#ef4444)" }} />
+              <div style={{ ...st.hpInner, width: `${hpPct * 100}%`, background: hpPct > 0.35 ? "#15803d" : "#b91c1c" }} />
               <span style={st.hpText}>{Math.max(0, Math.ceil(g?.hp ?? 0))} / {g?.maxHp ?? 100}</span>
             </div>
             <div style={st.xpOuter}>
@@ -355,30 +355,30 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
       <div style={{ display: "flex", flex: 1, gap: 0, minHeight: 0, padding: "6px 8px 4px" }}>
         {/* SOL: takimimin ortak haritasi (takim arkadaslari ayni mapte) */}
         <div style={{ flex: 1, minWidth: 0, paddingRight: 5 }}>
-          <div style={{ ...st.arenaLabel, background: "#12291c", color: "#4ade80" }}>
+          <div style={{ ...st.arenaLabel, background: "#131007", color: "#b8860b" }}>
             TAKIM {myTeam + 1} — {[me, ...teammates].filter(Boolean).map((p) => memberChip(p as LobbyPlayer))}
           </div>
           <canvas
             ref={canvasRef}
             width={ARENA.width}
             height={ARENA.height}
-            style={{ display: "block", width: "100%", border: "1px solid #1d3a2a", borderRadius: "0 0 8px 8px" }}
+            style={{ display: "block", width: "100%", border: "1px solid #33272a", borderRadius: 0 }}
           />
         </div>
 
         {/* ORTA cizgi */}
-        <div style={{ width: 3, background: "linear-gradient(180deg,#4ade8044,#ef444444)", borderRadius: 2, flexShrink: 0 }} />
+        <div style={{ width: 3, background: "#7f1d1d", flexShrink: 0 }} />
 
         {/* SAG: dusman takiminin ortak haritasi */}
         <div style={{ flex: 1, minWidth: 0, paddingLeft: 5 }}>
-          <div style={{ ...st.arenaLabel, background: "#2d1218", color: "#f87171" }}>
+          <div style={{ ...st.arenaLabel, background: "#170a0b", color: "#ef4444" }}>
             DÜŞMAN — {enemies.map((p) => memberChip(p))}
           </div>
           <canvas
             ref={enemyCanvasRef}
             width={ARENA.width}
             height={ARENA.height}
-            style={{ display: "block", width: "100%", border: "1px solid #402330", borderRadius: "0 0 8px 8px" }}
+            style={{ display: "block", width: "100%", border: "1px solid #33272a", borderRadius: 0 }}
           />
         </div>
       </div>
@@ -391,7 +391,7 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
       {/* ---- Level Up paneli ---- */}
       {currentChoices && !result && (
         <div className="slide-down" style={st.levelUpPanel}>
-          <div style={{ textAlign: "center", fontSize: 13, marginBottom: 8, color: "#fbbf24", fontWeight: 800, letterSpacing: 1 }}>
+          <div style={{ textAlign: "center", fontSize: 13, marginBottom: 8, color: "#b8860b", fontWeight: 800, letterSpacing: 2, fontFamily: "Cinzel, serif" }}>
             SEVİYE ATLADIN {choiceQueue.length > 1 && <span style={{ opacity: 0.7 }}>(+{choiceQueue.length - 1} bekliyor)</span>}
           </div>
           <div style={{ display: "flex", gap: 10 }}>
@@ -412,7 +412,7 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
       {shopOpen === "market" && !result && (
         <div className="slide-down" style={st.shopPanel}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-            <b style={{ color: "#eab308" }}>MARKET — Rakibi Sabote Et</b>
+            <b style={{ color: "#b8860b", fontFamily: "Cinzel, serif", letterSpacing: 1 }}>MARKET — Rakibi Sabote Et</b>
             <span style={{ fontSize: 13 }}><span style={st.coin} /> {g?.gold ?? 0}</span>
           </div>
           {shopChoices.map((d, i) => (
@@ -435,7 +435,7 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
       {shopOpen === "dark" && !result && (
         <div className="slide-down" style={{ ...st.shopPanel, borderColor: "#ef444488" }}>
           <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
-            <b style={{ color: "#f87171" }}>KARANLIK MARKET — Kalıcı Güçlendirme</b>
+            <b style={{ color: "#ef4444", fontFamily: "Cinzel, serif", letterSpacing: 1 }}>KARANLIK MARKET — Kalıcı Güçlendirme</b>
             <span style={{ fontSize: 13 }}><span style={st.coin} /> {g?.gold ?? 0}</span>
           </div>
           <button className="btn ghost"
@@ -505,8 +505,8 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
                 const entries = Object.entries(stats).sort((a, b) => b[1] - a[1]);
                 const total = entries.reduce((s, [, v]) => s + v, 0);
                 return (
-                  <div key={p.id} style={{ ...st.statCard, borderColor: p.team === myTeam ? "#818cf8" : "#f87171" }}>
-                    <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 2, color: p.team === myTeam ? "#818cf8" : "#f87171" }}>
+                  <div key={p.id} style={{ ...st.statCard, borderColor: p.team === myTeam ? "#b8860b" : "#b91c1c" }}>
+                    <div style={{ fontWeight: 800, fontSize: 13, marginBottom: 2, color: p.team === myTeam ? "#b8860b" : "#ef4444" }}>
                       {name}{p.id === myId ? " (SEN)" : ""}
                     </div>
                     <div style={{ fontSize: 11, opacity: 0.6, marginBottom: 8 }}>Toplam hasar: {total.toLocaleString("tr-TR")}</div>
@@ -529,11 +529,11 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
             </div>
 
             {rematch === "sent" ? (
-              <p className="pulse" style={{ color: "#c084fc", marginBottom: 16, fontSize: 14 }}>
+              <p className="pulse" style={{ color: "#b8860b", marginBottom: 16, fontSize: 14 }}>
                 Rematch bekleniyor... ({rematchVotes}/{players.length})
               </p>
             ) : rematchVotes > 0 ? (
-              <p className="pulse" style={{ color: "#4ade80", marginBottom: 16, fontSize: 14 }}>
+              <p className="pulse" style={{ color: "#ef4444", marginBottom: 16, fontSize: 14 }}>
                 {rematchVotes} oyuncu rematch istiyor!
               </p>
             ) : null}
@@ -553,86 +553,95 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
   );
 }
 
+// Gotik tema: kirmizi & siyah, gradient yok, keskin hatlar
 const st: Record<string, React.CSSProperties> = {
   bar: {
     display: "flex", alignItems: "center", gap: 16, padding: "8px 14px",
-    background: "#120e1c", borderBottom: "1px solid #2b2340", flexShrink: 0,
+    background: "#0e0b0b", borderBottom: "1px solid #33272a", flexShrink: 0,
   },
   levelBadge: {
-    width: 34, height: 34, borderRadius: 9, flexShrink: 0,
-    background: "linear-gradient(135deg,#7c3aed,#4c1d95)",
+    width: 34, height: 34, borderRadius: 0, flexShrink: 0,
+    background: "#7f1d1d", border: "1px solid #b91c1c",
     display: "flex", alignItems: "center", justifyContent: "center",
-    fontWeight: 800, fontSize: 15, boxShadow: "0 2px 12px #7c3aed55",
+    fontWeight: 800, fontSize: 15, boxShadow: "0 0 12px rgba(185,28,28,0.4)",
+    fontFamily: "Cinzel, serif",
   },
   hpOuter: {
-    position: "relative", height: 16, background: "#0a0812",
-    borderRadius: 5, overflow: "hidden", border: "1px solid #2b2340",
+    position: "relative", height: 16, background: "#060505",
+    borderRadius: 0, overflow: "hidden", border: "1px solid #33272a",
   },
   hpInner: { height: "100%", transition: "width .15s" },
   hpText: {
     position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center",
     fontSize: 10, fontWeight: 700, textShadow: "0 1px 2px #000",
   },
-  xpOuter: { height: 4, background: "#0a0812", borderRadius: 2, overflow: "hidden", marginTop: 3 },
-  xpInner: { height: "100%", background: "linear-gradient(90deg,#7c3aed,#c084fc)", transition: "width .2s" },
+  xpOuter: { height: 4, background: "#060505", borderRadius: 0, overflow: "hidden", marginTop: 3, border: "1px solid #33272a", borderTop: "none" },
+  xpInner: { height: "100%", background: "#b91c1c", transition: "width .2s" },
   stat: { fontSize: 13, fontWeight: 700, whiteSpace: "nowrap", display: "flex", alignItems: "center", gap: 4 },
   coin: {
-    display: "inline-block", width: 10, height: 10, borderRadius: 5,
-    background: "radial-gradient(circle at 35% 35%, #fde68a, #d97706)", flexShrink: 0,
+    display: "inline-block", width: 10, height: 10, borderRadius: 0,
+    background: "#b8860b", border: "1px solid #806009",
+    transform: "rotate(45deg)", flexShrink: 0,
   },
-  timer: { fontSize: 18, fontWeight: 800, fontVariantNumeric: "tabular-nums", opacity: 0.9 },
+  timer: {
+    fontSize: 18, fontWeight: 700, fontVariantNumeric: "tabular-nums",
+    color: "#ef4444", fontFamily: "Cinzel, serif",
+  },
   slot: {
-    width: 32, height: 32, background: "#1c1728", border: "1px solid #2b2340",
-    borderRadius: 7, display: "flex", alignItems: "center", justifyContent: "center",
+    width: 32, height: 32, background: "#151011", border: "1px solid #33272a",
+    borderRadius: 0, display: "flex", alignItems: "center", justifyContent: "center",
     position: "relative", fontSize: 14, flexShrink: 0,
   },
-  slotLvl: { position: "absolute", bottom: 0, right: 3, fontSize: 9, fontWeight: 800, color: "#c084fc" },
+  slotLvl: { position: "absolute", bottom: 0, right: 3, fontSize: 9, fontWeight: 800, color: "#ef4444" },
   arenaLabel: {
-    fontSize: 10, fontWeight: 800, letterSpacing: 1.5, padding: "4px 10px",
-    borderRadius: "8px 8px 0 0", border: "1px solid #2b2340", borderBottom: "none",
+    fontSize: 10, fontWeight: 800, letterSpacing: 2, padding: "5px 10px",
+    borderRadius: 0, border: "1px solid #33272a", borderBottom: "none",
     whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis",
+    fontFamily: "Cinzel, serif",
   },
   footer: {
     textAlign: "center", fontSize: 11, opacity: 0.4, padding: "3px 0 6px", flexShrink: 0,
+    letterSpacing: 1,
   },
   levelUpPanel: {
     position: "absolute", top: 60, left: "50%", transform: "translateX(-50%)",
-    background: "#141020f2", border: "1px solid #fbbf24aa", borderRadius: 14,
-    padding: 14, zIndex: 10, boxShadow: "0 8px 40px #fbbf2433",
+    background: "#151011f5", border: "1px solid #b8860b", outline: "1px solid #000", outlineOffset: 2,
+    borderRadius: 0, padding: 14, zIndex: 10, boxShadow: "0 8px 40px #000000cc",
   },
-  choiceCard: { width: 185, padding: 10, textAlign: "center", borderRadius: 10 },
+  choiceCard: { width: 185, padding: 10, textAlign: "center", borderRadius: 0 },
   kbd: {
-    background: "#2b2340", borderRadius: 4, padding: "1px 6px",
-    fontSize: 11, fontWeight: 700, color: "#c084fc",
+    background: "#060505", border: "1px solid #33272a", borderRadius: 0,
+    padding: "1px 6px", fontSize: 11, fontWeight: 700, color: "#ef4444",
   },
   shopPanel: {
     position: "absolute", left: 16, bottom: 60, width: 360,
-    background: "#141020f6", border: "1px solid #eab30888", borderRadius: 14,
-    padding: 14, zIndex: 10, display: "flex", flexDirection: "column", gap: 6,
-    boxShadow: "0 8px 40px #00000088",
+    background: "#151011f6", border: "1px solid #b8860b", outline: "1px solid #000", outlineOffset: 2,
+    borderRadius: 0, padding: 14, zIndex: 10, display: "flex", flexDirection: "column", gap: 6,
+    boxShadow: "0 8px 40px #000000cc",
   },
-  shopItem: { display: "flex", alignItems: "center", padding: "8px 12px", borderRadius: 8 },
+  shopItem: { display: "flex", alignItems: "center", padding: "8px 12px", borderRadius: 0 },
   shopHint: { fontSize: 11, opacity: 0.5, textAlign: "center", marginTop: 4 },
   chatBox: {
     position: "absolute", bottom: 40, left: "25%", transform: "translateX(-50%)",
     width: 380, zIndex: 15,
   },
   chatInput: {
-    width: "100%", background: "#141020f6", color: "#e8e8f0",
-    border: "2px solid #7c3aed", borderRadius: 10, padding: "10px 14px",
+    width: "100%", background: "#0e0b0bf6", color: "#e3ddd2",
+    border: "1px solid #b91c1c", borderRadius: 0, padding: "10px 14px",
     fontSize: 14, outline: "none",
   },
   spectateBand: {
     position: "absolute", top: 60, left: "50%", transform: "translateX(-50%)",
-    background: "#dc2626dd", padding: "8px 24px", borderRadius: 10,
-    fontWeight: 800, fontSize: 14, zIndex: 12, letterSpacing: 1,
+    background: "#7f1d1d", border: "1px solid #b91c1c", padding: "8px 24px",
+    borderRadius: 0, fontWeight: 700, fontSize: 14, zIndex: 12, letterSpacing: 2,
+    fontFamily: "Cinzel, serif",
   },
   overlay: {
-    position: "absolute", inset: 0, background: "#000000d5", zIndex: 20,
+    position: "absolute", inset: 0, background: "#000000e0", zIndex: 20,
     display: "flex", alignItems: "center", justifyContent: "center",
   },
   statCard: {
-    background: "#0f0c18", border: "2px solid", borderRadius: 12,
+    background: "#0e0b0b", border: "2px solid", borderRadius: 0,
     padding: "12px 16px", width: 260, textAlign: "left",
   },
   statRow: { display: "flex", alignItems: "center", fontSize: 11, marginBottom: 4 },

@@ -1,1 +1,1 @@
-{"root":["./src/app.tsx","./src/main.tsx","./src/socket.ts","./src/vite-env.d.ts","./src/components/charactereditor.tsx","./src/components/gamecanvas.tsx","./src/game/config.ts","./src/game/engine.ts","./src/game/render.ts","./src/game/sprites.ts"],"version":"5.9.3"}
+{"root":["./src/app.tsx","./src/main.tsx","./src/socket.ts","./src/vite-env.d.ts","./src/components/gamecanvas.tsx","./src/game/config.ts","./src/game/engine.ts","./src/game/render.ts","./src/game/sprites.ts"],"version":"5.9.3"}
