@@ -28,6 +28,10 @@ export default function GameCanvas({ seed }: { seed: number }) {
   const [upgraderOpen, setUpgraderOpen] = useState(false);
   const [sentMonsterUpgrades, setSentMonsterUpgrades] = useState(0);
   const [gameOverReason, setGameOverReason] = useState<string | null>(null);
+  const shopOpenRef = useRef(shopOpen);
+  shopOpenRef.current = shopOpen;
+  const upgraderOpenRef = useRef(upgraderOpen);
+  upgraderOpenRef.current = upgraderOpen;
   const [result, setResult] = useState<"win" | "lose" | null>(null);
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
   const [rematch, setRematch] = useState<"idle" | "sent" | "incoming">("idle");
@@ -106,7 +110,15 @@ export default function GameCanvas({ seed }: { seed: number }) {
       };
       socket.emit("game:stateSync", snapshot);
     }, 100);
-    const hudTimer = setInterval(() => forceHud((n) => n + 1), 100);
+    const hudTimer = setInterval(() => {
+      forceHud((n) => n + 1);
+      if (shopOpenRef.current && !engine.nearVendor) {
+        setShopOpen(false);
+      }
+      if (upgraderOpenRef.current && !engine.nearUpgrader) {
+        setUpgraderOpen(false);
+      }
+    }, 100);
 
     // --- Klavye: WASD + ok tuslari (2D hareket), E satici, 1/2/3 secim ---
     const pickByIndex = (i: number) => {
