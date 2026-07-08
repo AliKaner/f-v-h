@@ -109,7 +109,11 @@ export type WeaponType =
   | "lightning"
   | "turret"
   | "impactor"
-  | "rapid";
+  | "rapid"
+  | "orbit"
+  | "poison"
+  | "boomerang"
+  | "meteor";
 
 export interface WeaponDef {
   type: WeaponType;
@@ -118,17 +122,46 @@ export interface WeaponDef {
   baseDamage: number;
   cooldown: number; // sn
   emoji: string;
+  color: string; // UI ikon + efekt rengi
 }
 
 export const WEAPONS: WeaponDef[] = [
-  { type: "aoe", name: "AoE Çevirmen", desc: "Etrafında dönen hasar alanı", baseDamage: 13, cooldown: 0.5, emoji: "🌀" },
-  { type: "blade", name: "Keskin Bıçak", desc: "Baktığın yöne bıçak savurur", baseDamage: 22, cooldown: 0.8, emoji: "🗡️" },
-  { type: "frost", name: "Yavaşlatıcı Don", desc: "Yakındakileri %50 yavaşlatır + hasar", baseDamage: 30, cooldown: 1.2, emoji: "❄️" },
-  { type: "firerain", name: "Ateş Yağmuru", desc: "Rastgele düşmanları yakar (DoT)", baseDamage: 38, cooldown: 1.5, emoji: "🔥" },
-  { type: "lightning", name: "Şimşek Zinciri", desc: "En yakın düşmana güdümlü şimşek", baseDamage: 28, cooldown: 1.0, emoji: "⚡" },
-  { type: "turret", name: "Turret Fabrikası", desc: "8 sn yaşayan turret bırakır (max 3)", baseDamage: 15, cooldown: 4.0, emoji: "🏰" },
-  { type: "impactor", name: "İmpaktor", desc: "En güçlü düşmana dev vuruş", baseDamage: 70, cooldown: 2.5, emoji: "💥" },
-  { type: "rapid", name: "Çok Keskin", desc: "En yakına çok hızlı küçük mermiler", baseDamage: 4, cooldown: 0.15, emoji: "✨" },
+  { type: "aoe", name: "AoE Çevirmen", desc: "Etrafında dönen hasar alanı", baseDamage: 13, cooldown: 0.5, emoji: "🌀", color: "#c084fc" },
+  { type: "blade", name: "Keskin Bıçak", desc: "Baktığın yöne bıçak savurur", baseDamage: 22, cooldown: 0.8, emoji: "🗡️", color: "#e2e8f0" },
+  { type: "frost", name: "Yavaşlatıcı Don", desc: "Yakındakileri %50 yavaşlatır + hasar", baseDamage: 30, cooldown: 1.2, emoji: "❄️", color: "#7dd3fc" },
+  { type: "firerain", name: "Ateş Yağmuru", desc: "Rastgele düşmanları yakar (DoT)", baseDamage: 38, cooldown: 1.5, emoji: "🔥", color: "#fb923c" },
+  { type: "lightning", name: "Şimşek Zinciri", desc: "En yakın düşmana güdümlü şimşek", baseDamage: 28, cooldown: 1.0, emoji: "⚡", color: "#fef08a" },
+  { type: "turret", name: "Turret Fabrikası", desc: "8 sn yaşayan turret bırakır (max 3)", baseDamage: 15, cooldown: 4.0, emoji: "🏰", color: "#f97316" },
+  { type: "impactor", name: "İmpaktor", desc: "En güçlü düşmana dev vuruş", baseDamage: 70, cooldown: 2.5, emoji: "💥", color: "#f87171" },
+  { type: "rapid", name: "Çok Keskin", desc: "En yakına çok hızlı küçük mermiler", baseDamage: 4, cooldown: 0.15, emoji: "✨", color: "#a5f3fc" },
+  { type: "orbit", name: "Dönen Küreler", desc: "Etrafında dönen kürelere değen yanar", baseDamage: 9, cooldown: 0.35, emoji: "🔮", color: "#818cf8" },
+  { type: "poison", name: "Zehir Bulutu", desc: "Bulunduğun yere kalıcı zehir bulutu (4sn)", baseDamage: 12, cooldown: 2.0, emoji: "☠️", color: "#4ade80" },
+  { type: "boomerang", name: "Bumerang", desc: "Fırlar, deler, geri döner — çift vuruş", baseDamage: 26, cooldown: 1.3, emoji: "🪃", color: "#fbbf24" },
+  { type: "meteor", name: "Meteor Çağrısı", desc: "Gökten meteor düşer — alan patlaması", baseDamage: 55, cooldown: 3.0, emoji: "☄️", color: "#f472b6" },
+];
+
+// ---- Secilebilir kahramanlar (cizim yerine hazir sprite secimi) ----
+export interface HeroDef {
+  id: string; // sprite klasoru
+  name: string;
+}
+export const HEROES: HeroDef[] = [
+  { id: "soldier", name: "Asker" },
+  { id: "orc", name: "Orc" },
+  { id: "demon", name: "Demon" },
+  { id: "blood_monster", name: "Kan Canavarı" },
+];
+
+// ---- Mob chat replikleri — rastgele moblar konusur ----
+export const MOB_LINES = [
+  "öldürün piçi",
+  "taşşaklarına vurun",
+  "öldürün öldürün",
+  "kafasını koparın",
+  "çiğ çiğ yiyin onu",
+  "annemi özledim.",
+  "abi AI ya",
+  "vutututu",
 ];
 
 // Silah seviye carpani: her seviye +%25 hasar, -%5 cooldown
