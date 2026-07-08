@@ -21,6 +21,7 @@ interface Room {
   guestSocketId: string | null;
   createdAt: number;
   status: "waiting" | "active" | "ended";
+  rematchVotes: Set<string>;
 }
 
 const rooms = new Map<string, Room>();
@@ -57,6 +58,7 @@ io.on("connection", (socket: Socket) => {
       guestSocketId: null,
       createdAt: Date.now(),
       status: "waiting",
+      rematchVotes: new Set(),
     });
     socket.join(code);
     socket.data.roomCode = code;
@@ -108,8 +110,28 @@ io.on("connection", (socket: Socket) => {
     const room = rooms.get(code);
     if (room && room.status === "active") {
       room.status = "ended";
+      room.rematchVotes.clear();
       // Olen oyuncunun rakibi kazanir
       io.to(code).emit("game:over", { loserSocketId: socket.id });
+    }
+  });
+
+  // Rematch: iki oyuncu da isterse ayni odada yeni seed ile tekrar baslar
+  socket.on("game:rematch", () => {
+    const code = socket.data.roomCode as string | undefined;
+    if (!code) return;
+    const room = rooms.get(code);
+    if (!room || room.status !== "ended") return;
+    room.rematchVotes.add(socket.id);
+    socket.to(code).emit("game:rematchRequested");
+    if (room.rematchVotes.size >= 2) {
+      room.rematchVotes.clear();
+      room.status = "active";
+      io.to(code).emit("game:start", {
+        code: room.code,
+        seed: Math.floor(Math.random() * 2 ** 31),
+        startedAt: Date.now(),
+      });
     }
   });
 
@@ -122,6 +144,8 @@ io.on("connection", (socket: Socket) => {
       // Baglantisi kopan oyuncu kaybeder
       socket.to(code).emit("game:over", { loserSocketId: socket.id, reason: "disconnect" });
     }
+    // Rakip ayrildi — rematch artik mumkun degil
+    socket.to(code).emit("room:closed");
     rooms.delete(code);
   });
 });

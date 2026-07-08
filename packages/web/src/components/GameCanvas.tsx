@@ -26,6 +26,8 @@ export default function GameCanvas({ seed }: { seed: number }) {
   const [shopOpen, setShopOpen] = useState(false);
   const [result, setResult] = useState<"win" | "lose" | null>(null);
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
+  const [rematch, setRematch] = useState<"idle" | "sent" | "incoming">("idle");
+  const [oppLeft, setOppLeft] = useState(false);
   const [, forceHud] = useState(0);
 
   useEffect(() => {
@@ -57,11 +59,16 @@ export default function GameCanvas({ seed }: { seed: number }) {
       engine.gameOver = true;
       setResult(data.loserSocketId === socket.id ? "lose" : "win");
     };
+    // Rakip rematch istedi (biz de istediysen sunucu zaten game:start atar)
+    const onRematchRequested = () => setRematch((r) => (r === "sent" ? r : "incoming"));
+    const onRoomClosed = () => setOppLeft(true);
     socket.on("game:enemySpawn", onEnemySpawn);
     socket.on("game:debuffApplied", onDebuff);
     socket.on("game:stateSync", onStateSync);
     socket.on("game:charSync", onCharSync);
     socket.on("game:over", onGameOver);
+    socket.on("game:rematchRequested", onRematchRequested);
+    socket.on("room:closed", onRoomClosed);
 
     // Cizilen karakteri rakibe gonder (baglanti sirasi garantisi icin iki kez)
     const myPixels = loadCharacter();
@@ -167,6 +174,8 @@ export default function GameCanvas({ seed }: { seed: number }) {
       socket.off("game:stateSync", onStateSync);
       socket.off("game:charSync", onCharSync);
       socket.off("game:over", onGameOver);
+      socket.off("game:rematchRequested", onRematchRequested);
+      socket.off("room:closed", onRoomClosed);
     };
   }, [seed]);
 
@@ -330,7 +339,7 @@ export default function GameCanvas({ seed }: { seed: number }) {
       {/* ---- Oyun sonu ---- */}
       {result && (
         <div style={hud.overlay}>
-          <div className="card" style={{ padding: "48px 64px", textAlign: "center" }}>
+          <div className="card slide-down" style={{ padding: "48px 64px", textAlign: "center" }}>
             <h1 style={{ fontSize: 56, marginBottom: 8 }}>{result === "win" ? "🏆" : "💀"}</h1>
             <h1 className={result === "win" ? "title-glow" : ""} style={{ fontSize: 42, marginBottom: 12 }}>
               {result === "win" ? "KAZANDIN!" : "KAYBETTİN"}
@@ -338,7 +347,34 @@ export default function GameCanvas({ seed }: { seed: number }) {
             <p style={{ opacity: 0.7, marginBottom: 28 }}>
               Seviye {g?.level} · {g?.kills} kill · {Math.floor((g?.elapsed ?? 0) / 60)}dk {Math.floor((g?.elapsed ?? 0) % 60)}sn
             </p>
-            <button className="btn" onClick={() => location.reload()}>Lobiye Dön</button>
+
+            {/* Rematch durumu */}
+            {oppLeft ? (
+              <p style={{ color: "#f87171", marginBottom: 20, fontSize: 14 }}>Rakip oyundan ayrıldı 👋</p>
+            ) : rematch === "sent" ? (
+              <p className="pulse" style={{ color: "#c084fc", marginBottom: 20, fontSize: 14 }}>
+                ⏳ Rematch isteği gönderildi — rakip bekleniyor...
+              </p>
+            ) : rematch === "incoming" ? (
+              <p className="pulse" style={{ color: "#4ade80", marginBottom: 20, fontSize: 14 }}>
+                🔥 Rakip rematch istiyor!
+              </p>
+            ) : null}
+
+            <div style={{ display: "flex", gap: 12, justifyContent: "center" }}>
+              {!oppLeft && rematch !== "sent" && (
+                <button
+                  className="btn"
+                  onClick={() => {
+                    getSocket().emit("game:rematch");
+                    setRematch("sent");
+                  }}
+                >
+                  🔄 {rematch === "incoming" ? "Kabul Et!" : "Rematch İste"}
+                </button>
+              )}
+              <button className="btn ghost" onClick={() => location.reload()}>Lobiye Dön</button>
+            </div>
           </div>
         </div>
       )}

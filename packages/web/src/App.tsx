@@ -60,7 +60,8 @@ export default function App() {
   };
 
   if (screen.name === "game") {
-    return <GameCanvas seed={screen.seed} />;
+    // key=seed: rematch'te yeni seed gelince komponent sifirdan kurulur
+    return <GameCanvas key={screen.seed} seed={screen.seed} />;
   }
 
   if (screen.name === "waiting") {
