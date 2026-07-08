@@ -69,6 +69,20 @@ export function render(ctx: CanvasRenderingContext2D, g: GameEngine, sprites: Sp
   ctx.fillStyle = g.nearVendor ? "#ffd700" : "#8b8b9e";
   ctx.fillText(g.nearVendor ? "[E] Satıcı" : "Satıcı", vendorX, vendorY + 36);
 
+  // Ikinci Satici (Karanlik Satici) bolgesi
+  const { vendor2X, vendor2Y, vendor2Range } = ARENA;
+  ctx.strokeStyle = g.nearUpgrader ? "#ef444466" : "#ffffff15";
+  ctx.setLineDash([6, 6]);
+  ctx.beginPath();
+  ctx.arc(vendor2X, vendor2Y, vendor2Range, 0, Math.PI * 2);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.font = "40px serif";
+  ctx.fillText("💀", vendor2X, vendor2Y + 14);
+  ctx.font = "12px sans-serif";
+  ctx.fillStyle = g.nearUpgrader ? "#ef4444" : "#8b8b9e";
+  ctx.fillText(g.nearUpgrader ? "[E] Karanlık Satıcı" : "Karanlık Satıcı", vendor2X, vendor2Y + 36);
+
   // Alan-etkili silah efektleri (zeminde, varliklarin altinda)
   for (const e of g.effects) {
     const p = e.life / e.maxLife; // 1 → 0

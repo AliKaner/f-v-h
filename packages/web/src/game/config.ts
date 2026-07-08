@@ -9,6 +9,9 @@ export const ARENA = {
   vendorX: 90, // satici konumu (sol kenar ortasi)
   vendorY: 380,
   vendorRange: 100, // etkilesim mesafesi
+  vendor2X: 1190, // ikinci satici konumu (sag kenar ortasi)
+  vendor2Y: 380,
+  vendor2Range: 100,
   maxCreatures: 120, // performans siniri — fazlasi kuyrukta bekler
 };
 
@@ -39,9 +42,9 @@ export function xpToNextLevel(level: number): number {
 export function spawnInterval(difficulty: number): number {
   return Math.max(2.5, 10 / (1 + difficulty * 0.1));
 }
-// Zorluk: oyun suresi ile artar (her 90 saniyede +1) (yavaşlatılmış)
+// Zorluk: oyun suresi ile artar (her 30 saniyede +1) (hızlandırıldı)
 export function difficultyAt(elapsedSec: number): number {
-  return Math.floor(elapsedSec / 90);
+  return Math.floor(elapsedSec / 30);
 }
 
 // ---- Yaratiklar ----
@@ -182,6 +185,5 @@ export const DEBUFFS: DebuffDef[] = [
   { id: "weaken", name: "Zayıflatma", desc: "Rakip %30 az hasar vurur (10sn)", cost: 120, emoji: "🥀", duration: 10 },
   { id: "steal", name: "Altın Hırsızı", desc: "Rakibin altınının %25'ini çal", cost: 150, emoji: "🪙", duration: 0 },
   { id: "buffMonsters", name: "Kan Büyüsü", desc: "Rakip yaratıkları %50 güçlenir (15sn)", cost: 200, emoji: "🩸", duration: 15 },
-  { id: "levelUpMonsters", name: "Canavar Seviyesi +1", desc: "Rakibin yaratıklarını kalıcı olarak level atlatır", cost: 120, emoji: "💀", duration: 0 },
   { id: "spawnBoss", name: "Boss Çağır", desc: "Rakibe dev bir boss yollar (5x boyut, dev can, yavaş)", cost: 250, emoji: "👹", duration: 0 },
 ];

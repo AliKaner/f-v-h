@@ -174,6 +174,9 @@ export class GameEngine {
   get nearVendor() {
     return Math.hypot(this.playerX - ARENA.vendorX, this.playerY - ARENA.vendorY) < ARENA.vendorRange;
   }
+  get nearUpgrader() {
+    return Math.hypot(this.playerX - ARENA.vendor2X, this.playerY - ARENA.vendor2Y) < ARENA.vendor2Range;
+  }
 
   /** Rakipten gelen spawn istegi */
   queueEnemySpawns(count: number) { this.pendingSpawns += count; }

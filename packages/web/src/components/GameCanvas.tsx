@@ -25,6 +25,9 @@ export default function GameCanvas({ seed }: { seed: number }) {
   choiceQueueRef.current = choiceQueue;
   const [shopOpen, setShopOpen] = useState(false);
   const [shopChoices, setShopChoices] = useState<typeof DEBUFFS>([]);
+  const [upgraderOpen, setUpgraderOpen] = useState(false);
+  const [sentMonsterUpgrades, setSentMonsterUpgrades] = useState(0);
+  const [gameOverReason, setGameOverReason] = useState<string | null>(null);
   const [result, setResult] = useState<"win" | "lose" | null>(null);
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
   const [rematch, setRematch] = useState<"idle" | "sent" | "incoming">("idle");
@@ -56,9 +59,12 @@ export default function GameCanvas({ seed }: { seed: number }) {
         oppCustomRef.current = characterToCanvas(data.pixels, 6);
       }
     };
-    const onGameOver = (data: { loserSocketId: string }) => {
+    const onGameOver = (data: { loserSocketId: string; reason?: string }) => {
       engine.gameOver = true;
-      setResult(data.loserSocketId === socket.id ? "lose" : "win");
+      if (data.reason) setGameOverReason(data.reason);
+      setTimeout(() => {
+        setResult(data.loserSocketId === socket.id ? "lose" : "win");
+      }, 1000);
     };
     // Rakip rematch istedi (biz de istediysen sunucu zaten game:start atar)
     const onRematchRequested = () => setRematch((r) => (r === "sent" ? r : "incoming"));
@@ -115,7 +121,15 @@ export default function GameCanvas({ seed }: { seed: number }) {
       if (k === "d" || k === "arrowright") engine.input.right = true;
       if (k === "w" || k === "arrowup") engine.input.up = true;
       if (k === "s" || k === "arrowdown") engine.input.down = true;
-      if (k === "e" && engine.nearVendor) setShopOpen((v) => !v);
+      if (k === "e") {
+        if (engine.nearVendor) {
+          setShopOpen((v) => !v);
+          setUpgraderOpen(false);
+        } else if (engine.nearUpgrader) {
+          setUpgraderOpen((v) => !v);
+          setShopOpen(false);
+        }
+      }
       if (k === "1") pickByIndex(0);
       if (k === "2") pickByIndex(1);
       if (k === "3") pickByIndex(2);
@@ -204,6 +218,17 @@ export default function GameCanvas({ seed }: { seed: number }) {
     getSocket().emit("game:debuffApplied", { id });
     engine.addText(engine.playerX, engine.playerY - 100, "Rakibe gönderildi! 😈", "#a78bfa");
     setShopChoices((prev) => prev.filter((d) => d.id !== id));
+  };
+
+  const upgradeCost = 100 + sentMonsterUpgrades * 75;
+
+  const buyMonsterUpgrade = () => {
+    const engine = engineRef.current;
+    if (!engine || engine.gold < upgradeCost) return;
+    engine.gold -= upgradeCost;
+    getSocket().emit("game:debuffApplied", { id: "levelUpMonsters" });
+    engine.addText(engine.playerX, engine.playerY - 100, "Canavarlar güçlendi! 😈", "#ef4444");
+    setSentMonsterUpgrades((prev) => prev + 1);
   };
 
   const hpPct = g ? Math.max(0, g.hp / g.maxHp) : 1;
@@ -347,6 +372,29 @@ export default function GameCanvas({ seed }: { seed: number }) {
         </div>
       )}
 
+      {/* ---- Karanlik Satici paneli (oyun devam eder!) ---- */}
+      {upgraderOpen && !result && (
+        <div className="slide-down" style={hud.upgraderPanel}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
+            <b>💀 Karanlık Satıcı — Kalıcı Canavar Güçlendir</b>
+            <span style={{ fontSize: 13 }}>🪙 {g?.gold ?? 0}</span>
+          </div>
+          <button
+            className="btn ghost"
+            style={{ ...hud.shopItem, opacity: (g?.gold ?? 0) >= upgradeCost ? 1 : 0.4 }}
+            onClick={buyMonsterUpgrade}
+          >
+            <span style={{ fontSize: 24 }}>💀</span>
+            <span style={{ flex: 1, textAlign: "left", marginLeft: 10 }}>
+              <b style={{ fontSize: 13 }}>Canavar Seviyesi +1 (Sonsuz)</b>
+              <div style={{ fontSize: 11, opacity: 0.75 }}>Rakibin yaratıklarını kalıcı olarak level atlatır (Giderek pahalılaşır)</div>
+            </span>
+            <b style={{ fontSize: 13, color: "#f87171" }}>🪙 {upgradeCost}</b>
+          </button>
+          <div style={{ fontSize: 11, opacity: 0.5, textAlign: "center", marginTop: 6 }}>[E] kapat — oyun devam ediyor!</div>
+        </div>
+      )}
+
       {/* ---- Oyun sonu ---- */}
       {result && (
         <div style={hud.overlay}>
@@ -355,6 +403,11 @@ export default function GameCanvas({ seed }: { seed: number }) {
             <h1 className={result === "win" ? "title-glow" : ""} style={{ fontSize: 42, marginBottom: 12 }}>
               {result === "win" ? "KAZANDIN!" : "KAYBETTİN"}
             </h1>
+            {result === "win" && gameOverReason === "disconnect" && (
+              <p style={{ color: "#4ade80", fontSize: 14, fontWeight: 700, marginBottom: 16 }}>
+                Rakibin bağlantısı koptu 🔌
+              </p>
+            )}
             <p style={{ opacity: 0.7, marginBottom: 28 }}>
               Seviye {g?.level} · {g?.kills} kill · {Math.floor((g?.elapsed ?? 0) / 60)}dk {Math.floor((g?.elapsed ?? 0) % 60)}sn
             </p>
@@ -448,6 +501,12 @@ const hud: Record<string, React.CSSProperties> = {
   shopPanel: {
     position: "absolute", left: 16, top: 90, width: 340,
     background: "#141020f2", border: "1px solid #eab30888", borderRadius: 14,
+    padding: 14, zIndex: 10, display: "flex", flexDirection: "column", gap: 6,
+    boxShadow: "0 8px 40px #00000088",
+  },
+  upgraderPanel: {
+    position: "absolute", right: 16, top: 90, width: 340,
+    background: "#141020f2", border: "1px solid #ef444488", borderRadius: 14,
     padding: 14, zIndex: 10, display: "flex", flexDirection: "column", gap: 6,
     boxShadow: "0 8px 40px #00000088",
   },
