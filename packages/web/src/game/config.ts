@@ -35,13 +35,13 @@ export function xpDrop(base: number, difficulty: number): number {
 export function xpToNextLevel(level: number): number {
   return Math.floor(15 * Math.pow(1.15, level - 1));
 }
-// Spawn araligi (sn) — zorluk arttikca hizlanir
+// Spawn araligi (sn) — zorluk arttikca hizlanir (iyice yavaşlatılmış)
 export function spawnInterval(difficulty: number): number {
-  return Math.max(0.4, 3 / (1 + difficulty * 0.2));
+  return Math.max(2.5, 10 / (1 + difficulty * 0.1));
 }
-// Zorluk: oyun suresi ile artar (her 40 saniyede +1)
+// Zorluk: oyun suresi ile artar (her 90 saniyede +1) (yavaşlatılmış)
 export function difficultyAt(elapsedSec: number): number {
-  return Math.floor(elapsedSec / 40);
+  return Math.floor(elapsedSec / 90);
 }
 
 // ---- Yaratiklar ----
@@ -118,14 +118,14 @@ export interface WeaponDef {
 }
 
 export const WEAPONS: WeaponDef[] = [
-  { type: "aoe", name: "AoE Çevirmen", desc: "Etrafında dönen hasar alanı", baseDamage: 10, cooldown: 0.5, emoji: "🌀" },
-  { type: "blade", name: "Keskin Bıçak", desc: "Baktığın yöne bıçak savurur", baseDamage: 15, cooldown: 0.8, emoji: "🗡️" },
-  { type: "frost", name: "Yavaşlatıcı Don", desc: "Yakındakileri %50 yavaşlatır + hasar", baseDamage: 5, cooldown: 1.2, emoji: "❄️" },
-  { type: "firerain", name: "Ateş Yağmuru", desc: "Rastgele düşmanları yakar (DoT)", baseDamage: 20, cooldown: 1.5, emoji: "🔥" },
-  { type: "lightning", name: "Şimşek Zinciri", desc: "En yakın düşmana güdümlü şimşek", baseDamage: 25, cooldown: 1.0, emoji: "⚡" },
-  { type: "turret", name: "Turret Fabrikası", desc: "8 sn yaşayan turret bırakır (max 3)", baseDamage: 30, cooldown: 4.0, emoji: "🏰" },
-  { type: "impactor", name: "İmpaktor", desc: "En güçlü düşmana dev vuruş", baseDamage: 60, cooldown: 2.5, emoji: "💥" },
-  { type: "rapid", name: "Çok Keskin", desc: "En yakına çok hızlı küçük mermiler", baseDamage: 6, cooldown: 0.15, emoji: "✨" },
+  { type: "aoe", name: "AoE Çevirmen", desc: "Etrafında dönen hasar alanı", baseDamage: 13, cooldown: 0.5, emoji: "🌀" },
+  { type: "blade", name: "Keskin Bıçak", desc: "Baktığın yöne bıçak savurur", baseDamage: 22, cooldown: 0.8, emoji: "🗡️" },
+  { type: "frost", name: "Yavaşlatıcı Don", desc: "Yakındakileri %50 yavaşlatır + hasar", baseDamage: 30, cooldown: 1.2, emoji: "❄️" },
+  { type: "firerain", name: "Ateş Yağmuru", desc: "Rastgele düşmanları yakar (DoT)", baseDamage: 38, cooldown: 1.5, emoji: "🔥" },
+  { type: "lightning", name: "Şimşek Zinciri", desc: "En yakın düşmana güdümlü şimşek", baseDamage: 28, cooldown: 1.0, emoji: "⚡" },
+  { type: "turret", name: "Turret Fabrikası", desc: "8 sn yaşayan turret bırakır (max 3)", baseDamage: 15, cooldown: 4.0, emoji: "🏰" },
+  { type: "impactor", name: "İmpaktor", desc: "En güçlü düşmana dev vuruş", baseDamage: 70, cooldown: 2.5, emoji: "💥" },
+  { type: "rapid", name: "Çok Keskin", desc: "En yakına çok hızlı küçük mermiler", baseDamage: 4, cooldown: 0.15, emoji: "✨" },
 ];
 
 // Silah seviye carpani: her seviye +%25 hasar, -%5 cooldown

@@ -95,10 +95,10 @@ export default function App() {
 
       <div className="card slide-down" style={st.card}>
         <h1 className="title-glow" style={{ fontSize: 46, textAlign: "center", marginBottom: 4 }}>
-          FABLE vs HORDE
+          HORDE SURVIVORS
         </h1>
         <p style={{ textAlign: "center", opacity: 0.65, fontSize: 14, marginBottom: 28 }}>
-          Yaratıkları kes — her ölüm rakibine <b>2 yaratık</b> gönderir! ⚔️
+          PvP Arena — Yaratıkları kes, her ölüm rakibine <b>2 yaratık</b> gönderir! ⚔️
         </p>
 
         {/* Karakter */}

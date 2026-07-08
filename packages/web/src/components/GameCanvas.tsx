@@ -24,6 +24,7 @@ export default function GameCanvas({ seed }: { seed: number }) {
   const choiceQueueRef = useRef(choiceQueue);
   choiceQueueRef.current = choiceQueue;
   const [shopOpen, setShopOpen] = useState(false);
+  const [shopChoices, setShopChoices] = useState<typeof DEBUFFS>([]);
   const [result, setResult] = useState<"win" | "lose" | null>(null);
   const [opponent, setOpponent] = useState<OpponentInfo | null>(null);
   const [rematch, setRematch] = useState<"idle" | "sent" | "incoming">("idle");
@@ -182,6 +183,13 @@ export default function GameCanvas({ seed }: { seed: number }) {
   const g = engineRef.current;
   const currentChoices = choiceQueue[0] ?? null;
 
+  useEffect(() => {
+    if (shopOpen) {
+      const shuffled = [...DEBUFFS].sort(() => Math.random() - 0.5);
+      setShopChoices(shuffled.slice(0, 3));
+    }
+  }, [shopOpen]);
+
   const pick = (choice: LevelUpChoice) => {
     engineRef.current?.applyChoice(choice);
     setChoiceQueue((prev) => prev.slice(1));
@@ -193,6 +201,7 @@ export default function GameCanvas({ seed }: { seed: number }) {
     engine.gold -= cost;
     getSocket().emit("game:debuffApplied", { id });
     engine.addText(engine.playerX, engine.playerY - 100, "Rakibe gönderildi! 😈", "#a78bfa");
+    setShopChoices((prev) => prev.filter((d) => d.id !== id));
   };
 
   const hpPct = g ? Math.max(0, g.hp / g.maxHp) : 1;
@@ -317,7 +326,7 @@ export default function GameCanvas({ seed }: { seed: number }) {
             <b>🧙 Satıcı — Rakibini Zayıflat</b>
             <span style={{ fontSize: 13 }}>🪙 {g?.gold ?? 0}</span>
           </div>
-          {DEBUFFS.map((d) => (
+          {shopChoices.map((d) => (
             <button
               key={d.id}
               className="btn ghost"
