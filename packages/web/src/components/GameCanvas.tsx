@@ -101,6 +101,7 @@ export default function GameCanvas({ seed }: { seed: number }) {
             hp: Math.round((c.hp / c.maxHp) * 100) / 100,
             lvl: c.level,
             isBoss: c.isBoss,
+            isUltimateBoss: c.isUltimateBoss,
           })),
       };
       socket.emit("game:stateSync", snapshot);
@@ -229,6 +230,14 @@ export default function GameCanvas({ seed }: { seed: number }) {
     getSocket().emit("game:debuffApplied", { id: "levelUpMonsters" });
     engine.addText(engine.playerX, engine.playerY - 100, "Canavarlar güçlendi! 😈", "#ef4444");
     setSentMonsterUpgrades((prev) => prev + 1);
+  };
+
+  const buyUltimateBoss = () => {
+    const engine = engineRef.current;
+    if (!engine || engine.gold < 500) return;
+    engine.gold -= 500;
+    getSocket().emit("game:debuffApplied", { id: "spawnUltimateBoss" });
+    engine.addText(engine.playerX, engine.playerY - 100, "ULTIMATE BOSS gönderildi! 😈🔥", "#ef4444");
   };
 
   const hpPct = g ? Math.max(0, g.hp / g.maxHp) : 1;
@@ -381,7 +390,7 @@ export default function GameCanvas({ seed }: { seed: number }) {
           </div>
           <button
             className="btn ghost"
-            style={{ ...hud.shopItem, opacity: (g?.gold ?? 0) >= upgradeCost ? 1 : 0.4 }}
+            style={{ ...hud.shopItem, opacity: (g?.gold ?? 0) >= upgradeCost ? 1 : 0.4, marginBottom: 8 }}
             onClick={buyMonsterUpgrade}
           >
             <span style={{ fontSize: 24 }}>💀</span>
@@ -390,6 +399,18 @@ export default function GameCanvas({ seed }: { seed: number }) {
               <div style={{ fontSize: 11, opacity: 0.75 }}>Rakibin yaratıklarını kalıcı olarak level atlatır (Giderek pahalılaşır)</div>
             </span>
             <b style={{ fontSize: 13, color: "#f87171" }}>🪙 {upgradeCost}</b>
+          </button>
+          <button
+            className="btn ghost"
+            style={{ ...hud.shopItem, opacity: (g?.gold ?? 0) >= 500 ? 1 : 0.4 }}
+            onClick={buyUltimateBoss}
+          >
+            <span style={{ fontSize: 24 }}>🔥</span>
+            <span style={{ flex: 1, textAlign: "left", marginLeft: 10 }}>
+              <b style={{ fontSize: 13 }}>Nihai Canavar (ULTIMATE BOSS)</b>
+              <div style={{ fontSize: 11, opacity: 0.75 }}>Rakibe dev bir nihai boss yollar (15x boyut, 100x can!)</div>
+            </span>
+            <b style={{ fontSize: 13, color: "#f87171" }}>🪙 500</b>
           </button>
           <div style={{ fontSize: 11, opacity: 0.5, textAlign: "center", marginTop: 6 }}>[E] kapat — oyun devam ediyor!</div>
         </div>

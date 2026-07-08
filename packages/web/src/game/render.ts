@@ -15,6 +15,7 @@ export interface OppCreature {
   hp: number; // 0..1
   lvl?: number;
   isBoss?: boolean;
+  isUltimateBoss?: boolean;
 }
 export interface OppSnapshot {
   x: number;
@@ -133,7 +134,7 @@ export function render(ctx: CanvasRenderingContext2D, g: GameEngine, sprites: Sp
       y: c.y,
       draw: () => {
         const set = sprites.creatures.get(c.def.sprite);
-        const finalScale = c.def.scale * (c.isBoss ? 5 : 1);
+        const finalScale = c.def.scale * (c.isUltimateBoss ? 15 : (c.isBoss ? 5 : 1));
 
         // Draw Level Aura if c.level > 0
         if (!c.dead && c.level && c.level > 0) {
@@ -166,17 +167,21 @@ export function render(ctx: CanvasRenderingContext2D, g: GameEngine, sprites: Sp
         drawSprite(ctx, set, c.dead ? "Death" : c.anim, c.animTime, c.x, c.y + 40, finalScale, c.facing === -1);
 
         if (!c.dead) {
-          const w = c.isBoss ? 150 : 50;
-          const h = c.isBoss ? 8 : 5;
+          const w = c.isUltimateBoss ? 350 : (c.isBoss ? 150 : 50);
+          const h = c.isUltimateBoss ? 12 : (c.isBoss ? 8 : 5);
           const barY = c.y - 60 * finalScale;
           ctx.fillStyle = "#00000088";
           ctx.fillRect(c.x - w / 2, barY, w, h);
-          ctx.fillStyle = c.isBoss ? "#f43f5e" : (c.buffed ? "#ef4444" : "#4ade80");
+          ctx.fillStyle = c.isUltimateBoss ? "#ef4444" : (c.isBoss ? "#f43f5e" : (c.buffed ? "#ef4444" : "#4ade80"));
           ctx.fillRect(c.x - w / 2, barY, w * Math.max(0, c.hp / c.maxHp), h);
 
           if (c.buffed) { ctx.font = "12px serif"; ctx.fillText("🩸", c.x + w / 2 + 10, barY + 6); }
 
-          if (c.isBoss) {
+          if (c.isUltimateBoss) {
+            ctx.font = "bold 13px sans-serif";
+            ctx.fillStyle = "#ef4444";
+            ctx.fillText("🔥 ULTIMATE BOSS 🔥", c.x, barY - 8);
+          } else if (c.isBoss) {
             ctx.font = "bold 11px sans-serif";
             ctx.fillStyle = "#f43f5e";
             ctx.fillText("👑 BOSS", c.x, barY - 6);
@@ -185,7 +190,7 @@ export function render(ctx: CanvasRenderingContext2D, g: GameEngine, sprites: Sp
           // Level text next to health bar
           ctx.font = "bold 9px sans-serif";
           ctx.fillStyle = "#ffffff";
-          ctx.fillText(`Lvl ${c.level}`, c.x - w / 2 - 18, barY + (c.isBoss ? 7 : 5));
+          ctx.fillText(`Lvl ${c.level}`, c.x - w / 2 - 18, barY + (c.isUltimateBoss ? 10 : (c.isBoss ? 7 : 5)));
         }
       },
     });
@@ -320,7 +325,7 @@ export function renderOpponentView(
       draw: () => {
         const set = sprites.creatures.get(c.s);
         const baseScale = scaleOf.get(c.s) ?? 1;
-        const scale = baseScale * (c.isBoss ? 5 : 1);
+        const scale = baseScale * (c.isUltimateBoss ? 15 : (c.isBoss ? 5 : 1));
 
         // Draw Opponent Creature level aura if c.lvl > 0
         if (c.lvl && c.lvl > 0) {
@@ -352,15 +357,19 @@ export function renderOpponentView(
 
         drawSprite(ctx, set, "Walk", time, c.x, c.y + 40, scale, c.f === -1);
 
-        const w = c.isBoss ? 100 : 44;
-        const h = c.isBoss ? 6 : 4;
+        const w = c.isUltimateBoss ? 200 : (c.isBoss ? 100 : 44);
+        const h = c.isUltimateBoss ? 8 : (c.isBoss ? 6 : 4);
         const barY = c.y - 60 * scale;
         ctx.fillStyle = "#00000088";
         ctx.fillRect(c.x - w / 2, barY, w, h);
-        ctx.fillStyle = c.isBoss ? "#f43f5e" : "#f87171";
+        ctx.fillStyle = c.isUltimateBoss ? "#ef4444" : (c.isBoss ? "#f43f5e" : "#f87171");
         ctx.fillRect(c.x - w / 2, barY, w * Math.max(0, c.hp), h);
 
-        if (c.isBoss) {
+        if (c.isUltimateBoss) {
+          ctx.font = "bold 10px sans-serif";
+          ctx.fillStyle = "#ef4444";
+          ctx.fillText("🔥 ULTIMATE BOSS 🔥", c.x, barY - 6);
+        } else if (c.isBoss) {
           ctx.font = "bold 9px sans-serif";
           ctx.fillStyle = "#f43f5e";
           ctx.fillText("👑 BOSS", c.x, barY - 5);
@@ -369,7 +378,7 @@ export function renderOpponentView(
         if (c.lvl && c.lvl > 0) {
           ctx.font = "bold 8px sans-serif";
           ctx.fillStyle = "#ffffff";
-          ctx.fillText(`Lvl ${c.lvl}`, c.x - w / 2 - 14, barY + (c.isBoss ? 5 : 4));
+          ctx.fillText(`Lvl ${c.lvl}`, c.x - w / 2 - 14, barY + (c.isUltimateBoss ? 6 : (c.isBoss ? 5 : 4)));
         }
       },
     });

@@ -30,6 +30,7 @@ export interface CreatureState {
   facing: 1 | -1;
   level: number;
   isBoss?: boolean;
+  isUltimateBoss?: boolean;
 }
 
 export interface OwnedWeapon {
@@ -207,6 +208,9 @@ export class GameEngine {
       case "spawnBoss":
         this.spawnBossCreature();
         break;
+      case "spawnUltimateBoss":
+        this.spawnUltimateBossCreature();
+        break;
       case "steal": {
         const stolen = Math.floor(this.gold * 0.25);
         this.gold -= stolen;
@@ -343,6 +347,34 @@ export class GameEngine {
     this.addText(this.playerX, this.playerY - 130, "🚨 DEV BOSS SPAWN EDİLDİ! 🚨", "#ef4444");
   }
 
+  private spawnUltimateBossCreature() {
+    const def = this.pickCreature();
+    const level = this.difficulty + this.monsterLevelOffset;
+    const edge = Math.floor(this.rng() * 4);
+    let x: number, y: number;
+    switch (edge) {
+      case 0: x = -200; y = (ARENA.top + ARENA.bottom) / 2; break;
+      case 1: x = ARENA.width + 200; y = (ARENA.top + ARENA.bottom) / 2; break;
+      case 2: x = ARENA.width / 2; y = ARENA.top - 200; break;
+      default: x = ARENA.width / 2; y = ARENA.bottom + 200; break;
+    }
+    const hp = creatureHp(def.baseHp, level) * 100;
+    this.creatures.push({
+      uid: this.nextUid++,
+      def, x, y,
+      hp, maxHp: hp,
+      damage: creatureDamage(def.baseDamage, level) * 5,
+      speed: def.speed * 0.15,
+      slowUntil: 0, burnUntil: 0, burnDps: 0,
+      buffed: this.elapsed < this.monstersBuffedUntil,
+      anim: "Walk", animTime: 0, dead: false, contactCd: 0,
+      facing: x < this.playerX ? 1 : -1,
+      level,
+      isUltimateBoss: true,
+    });
+    this.addText(this.playerX, this.playerY - 140, "🚨 ULTIMATE BOSS SPAWN EDİLDİ!!! 🚨", "#ef4444");
+  }
+
   private updateCreatures(dt: number) {
     for (const c of this.creatures) {
       c.animTime += dt;
@@ -368,7 +400,7 @@ export class GameEngine {
 
       // Temas hasari (beden carpismasi)
       c.contactCd -= dt;
-      const contactDist = c.isBoss ? 110 : 45;
+      const contactDist = c.isUltimateBoss ? 220 : (c.isBoss ? 110 : 45);
       if (dist <= contactDist && c.contactCd <= 0) {
         c.contactCd = PLAYER_BASE.contactDamageInterval;
         const dmg = Math.max(1, Math.floor(c.damage * buffMult * this.damageTakenMult));
@@ -655,7 +687,7 @@ export class GameEngine {
       p.x += p.vx * dt;
       p.y += p.vy * dt;
       for (const c of this.aliveCreatures()) {
-        const hitRadius = c.isBoss ? 100 : p.hitRadius;
+        const hitRadius = c.isUltimateBoss ? 200 : (c.isBoss ? 100 : p.hitRadius);
         if (Math.hypot(c.x - p.x, c.y - p.y) <= hitRadius) {
           this.damageCreature(c, p.damage, true);
           p.alive = false;
