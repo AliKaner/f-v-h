@@ -5,7 +5,8 @@
 // 2D hareket, level up oyunu durdurmaz, moblar ve oyuncu konusabilir.
 
 import {
-  ARENA, PLAYER_BASE, CREATURES, WEAPONS, BOOKS, MOB_LINES,
+  ARENA, PLAYER_BASE, CREATURES, WEAPONS, BOOKS,
+  MOB_LINES, MOB_DEATH_LINES, COWARD_CHANCE, COWARD_LINES,
   creatureHp, creatureDamage, goldDrop, xpDrop, xpToNextLevel,
   spawnInterval, difficultyAt, weaponDamage, weaponCooldown,
   type CreatureDef, type WeaponDef, type BookDef, type WeaponType, type BookType,
@@ -35,6 +36,14 @@ export interface CreatureState {
   fromEcho?: boolean; // rakip kill'inden geldi — kesilince echo uretmez
   say?: string; // mob chat balonu
   sayUntil: number;
+  coward?: boolean; // korkak mob — oyuncudan kacar
+}
+
+// Ayni haritadaki takim arkadasi (pozisyonu senkrondan gelir)
+export interface Ally {
+  id: string;
+  x: number;
+  y: number;
 }
 
 export interface OwnedWeapon {
@@ -128,6 +137,8 @@ export interface EngineCallbacks {
   onKill: (count: number) => void;
   onLevelUp: (choices: LevelUpChoice[]) => void;
   onDeath: () => void;
+  // Yaratik ayni haritadaki takim arkadasina carpti — hasari ona ilet
+  onAllyHit?: (allyId: string, damage: number) => void;
 }
 
 export class GameEngine {
@@ -179,6 +190,10 @@ export class GameEngine {
   weakenedUntil = 0;
   monstersBuffedUntil = 0;
   monsterLevelOffset = 0;
+
+  // Ayni haritada oynayan takim arkadaslari — GameCanvas her frame gunceller.
+  // Yaratiklar en yakin takim uyesini hedefler; temas hasari ona iletilir.
+  allies: Ally[] = [];
 
   input = { left: false, right: false, up: false, down: false };
 
@@ -337,7 +352,8 @@ export class GameEngine {
     this.mobChatTimer = 1.5 + this.rng() * 2;
     if (this.alive.length === 0 || this.rng() > 0.55) return;
     const c = this.alive[Math.floor(this.rng() * this.alive.length)];
-    c.say = MOB_LINES[Math.floor(this.rng() * MOB_LINES.length)];
+    const lines = c.coward ? COWARD_LINES : MOB_LINES;
+    c.say = lines[Math.floor(this.rng() * lines.length)];
     c.sayUntil = this.elapsed + 2.5;
   }
 
@@ -366,7 +382,8 @@ export class GameEngine {
     const level = this.difficulty + this.monsterLevelOffset;
     const { x, y } = this.edgeSpawnPoint(50);
     const hp = creatureHp(def.baseHp, level);
-    this.creatures.push({
+    const coward = this.rng() < COWARD_CHANCE;
+    const c: CreatureState = {
       uid: this.nextUid++,
       def, x, y,
       hp, maxHp: hp,
@@ -376,8 +393,13 @@ export class GameEngine {
       buffed: this.elapsed < this.monstersBuffedUntil,
       anim: "Walk", animTime: 0, dead: false, contactCd: 0,
       facing: x < this.playerX ? 1 : -1,
-      level, fromEcho, sayUntil: 0,
-    });
+      level, fromEcho, sayUntil: 0, coward,
+    };
+    if (coward) {
+      c.say = COWARD_LINES[Math.floor(this.rng() * COWARD_LINES.length)];
+      c.sayUntil = this.elapsed + 3;
+    }
+    this.creatures.push(c);
   }
 
   private spawnBossCreature() {
@@ -431,12 +453,30 @@ export class GameEngine {
 
       const slowMult = this.elapsed < c.slowUntil ? 0.5 : 1;
       const buffMult = c.buffed ? 1.5 : 1;
-      const dx = this.playerX - c.x;
-      const dy = this.playerY - c.y;
+
+      // Hedef: en yakin takim uyesi (ben + ayni haritadaki muttefikler)
+      let tx = this.playerX, ty = this.playerY;
+      let targetAlly: Ally | null = null;
+      let bestDist = Math.hypot(this.playerX - c.x, this.playerY - c.y);
+      for (const a of this.allies) {
+        const d = Math.hypot(a.x - c.x, a.y - c.y);
+        if (d < bestDist) { bestDist = d; tx = a.x; ty = a.y; targetAlly = a; }
+      }
+
+      const dx = tx - c.x;
+      const dy = ty - c.y;
       const dist = Math.hypot(dx, dy);
       c.facing = dx > 0 ? 1 : -1;
 
-      if (dist > 30) {
+      if (c.coward) {
+        // Korkak mob: hedefe yaklasilinca ters yone kacar
+        if (dist < 260) {
+          const step = c.speed * slowMult * dt * 1.2;
+          c.x = Math.max(-40, Math.min(ARENA.width + 40, c.x - (dx / Math.max(1, dist)) * step));
+          c.y = Math.max(ARENA.top - 40, Math.min(ARENA.bottom + 40, c.y - (dy / Math.max(1, dist)) * step));
+          c.facing = dx > 0 ? -1 : 1;
+        }
+      } else if (dist > 30) {
         const step = c.speed * slowMult * dt;
         c.x += (dx / dist) * step;
         c.y += (dy / dist) * step;
@@ -444,15 +484,30 @@ export class GameEngine {
 
       c.contactCd -= dt;
       const contactDist = c.isUltimateBoss ? 220 : (c.isBoss ? 110 : 45);
-      if (dist <= contactDist && c.contactCd <= 0) {
+      if (dist <= contactDist && c.contactCd <= 0 && !c.coward) {
         c.contactCd = PLAYER_BASE.contactDamageInterval;
-        const dmg = Math.max(1, Math.floor(c.damage * buffMult * this.damageTakenMult));
-        this.hp -= dmg;
-        this.hurtFlash = 0.25;
-        this.addText(this.playerX, this.playerY - 90, `-${dmg}`, "#ff4d4d");
+        const rawDmg = Math.max(1, Math.floor(c.damage * buffMult));
+        if (targetAlly) {
+          // Takim arkadasina carpti — hasar ona gonderilir
+          this.cb.onAllyHit?.(targetAlly.id, rawDmg);
+        } else {
+          const dmg = Math.max(1, Math.floor(rawDmg * this.damageTakenMult));
+          this.hp -= dmg;
+          this.hurtFlash = 0.25;
+          this.addText(this.playerX, this.playerY - 90, `-${dmg}`, "#ff4d4d");
+        }
       }
     }
     this.creatures = this.creatures.filter((c) => !c.dead || c.animTime < 0.6);
+  }
+
+  /** Takim arkadasinin yaratigi bana carpti (socket uzerinden gelir) */
+  receiveTeamHit(rawDamage: number) {
+    if (this.gameOver) return;
+    const dmg = Math.max(1, Math.floor(rawDamage * this.damageTakenMult));
+    this.hp -= dmg;
+    this.hurtFlash = 0.25;
+    this.addText(this.playerX, this.playerY - 90, `-${dmg}`, "#ff4d4d");
   }
 
   private damageCreature(c: CreatureState, amount: number, canCrit: boolean, showText = true, src?: WeaponType) {
@@ -483,6 +538,10 @@ export class GameEngine {
     const xp = xpDrop(c.def.baseXp, diff) * (c.isBoss ? 5 : c.isUltimateBoss ? 20 : 1);
     this.gold += gold;
     this.addText(c.x, c.y - 50, `+${gold}`, "#fbbf24");
+    // Olum replikleri — %20 sansla son sozler
+    if (this.rng() < 0.2) {
+      this.addText(c.x, c.y - 85, `"${MOB_DEATH_LINES[Math.floor(this.rng() * MOB_DEATH_LINES.length)]}"`, "#94a3b8");
+    }
     this.gainXp(xp);
 
     // CEKIRDEK MEKANIK: kendi yaratigini kesersen rakibe 2 tane gider.

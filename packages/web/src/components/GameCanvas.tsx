@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { GameEngine, type LevelUpChoice } from "../game/engine";
-import { render, renderOpponentView, type SpriteBundle, type OppSnapshot } from "../game/render";
+import { render, renderSnapshotEntities, renderTeamView, type SpriteBundle, type OppSnapshot } from "../game/render";
 import { loadCreatureSprites } from "../game/sprites";
 import { ARENA, CREATURES, DEBUFFS, WEAPONS, HEROES } from "../game/config";
 import { getSocket } from "../socket";
@@ -21,7 +21,7 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
   const enemies = players.filter((p) => p.team !== myTeam);
 
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const otherCanvasRefs = useRef<Record<string, HTMLCanvasElement | null>>({});
+  const enemyCanvasRef = useRef<HTMLCanvasElement>(null);
   const snapshotsRef = useRef<Map<string, OppSnapshot>>(new Map());
   const engineRef = useRef<GameEngine | null>(null);
 
@@ -100,6 +100,8 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
         socket.emit("game:playerDied");
         setSpectating(true);
       },
+      // Yaratik ayni haritadaki takim arkadasina degdi — hasari ona ilet
+      onAllyHit: (allyId, damage) => socket.emit("game:teamHit", { to: allyId, damage }),
     });
     engineRef.current = engine;
 
@@ -108,7 +110,13 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
     const onDebuff = (data: { id: string }) => engine.applyDebuff(data.id);
     const onStateSync = (data: OppSnapshot & { from: string }) => {
       snapshotsRef.current.set(data.from, data);
+      // Ayni haritadaki canli takim arkadaslarini motora bildir (yaratik hedefleme)
+      engine.allies = teammates
+        .map((p) => ({ p, snap: snapshotsRef.current.get(p.id) }))
+        .filter((e) => e.snap && e.snap.hp > 0)
+        .map((e) => ({ id: e.p.id, x: e.snap!.x, y: e.snap!.y }));
     };
+    const onTeamHit = (data: { damage: number }) => engine.receiveTeamHit(data.damage);
     const onPlayerDead = (data: { id: string }) => {
       setDeadIds((prev) => new Set(prev).add(data.id));
     };
@@ -120,6 +128,7 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
     socket.on("game:enemySpawn", onEnemySpawn);
     socket.on("game:debuffApplied", onDebuff);
     socket.on("game:stateSync", onStateSync);
+    socket.on("game:teamHit", onTeamHit);
     socket.on("game:playerDead", onPlayerDead);
     socket.on("game:over", onGameOver);
     socket.on("game:rematchRequested", onRematchRequested);
@@ -216,15 +225,21 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
         last = now;
         engine.update(dt);
         const ctx = canvasRef.current?.getContext("2d");
-        if (ctx) render(ctx, engine, sprites);
-        // Diger oyuncularin arenalari
-        for (const p of players) {
-          if (p.id === myId) continue;
-          const c = otherCanvasRefs.current[p.id];
-          const octx = c?.getContext("2d");
-          if (octx) {
-            renderOpponentView(octx, snapshotsRef.current.get(p.id) ?? null, sprites, now / 1000, p.team !== myTeam);
+        if (ctx) {
+          render(ctx, engine, sprites);
+          // Takim arkadaslari AYNI haritada — kendi sahnenin ustune ciz
+          for (const p of teammates) {
+            const snap = snapshotsRef.current.get(p.id);
+            if (snap) renderSnapshotEntities(ctx, snap, sprites, now / 1000, false);
           }
+        }
+        // Dusman takiminin birlesik haritasi
+        const ectx = enemyCanvasRef.current?.getContext("2d");
+        if (ectx) {
+          const enemySnaps = enemies
+            .map((p) => snapshotsRef.current.get(p.id))
+            .filter((s): s is OppSnapshot => !!s);
+          renderTeamView(ectx, enemySnaps, sprites, now / 1000, true);
         }
         raf = requestAnimationFrame(loop);
       };
@@ -241,6 +256,7 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
       socket.off("game:enemySpawn", onEnemySpawn);
       socket.off("game:debuffApplied", onDebuff);
       socket.off("game:stateSync", onStateSync);
+      socket.off("game:teamHit", onTeamHit);
       socket.off("game:playerDead", onPlayerDead);
       socket.off("game:over", onGameOver);
       socket.off("game:rematchRequested", onRematchRequested);
@@ -282,22 +298,16 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
     return { name: snap?.name ?? players.find((p) => p.id === id)?.name ?? "?", stats: snap?.stats ?? {} };
   };
 
-  const ArenaCanvas = ({ p, small }: { p: LobbyPlayer; small?: boolean }) => {
-    const snap = snapshotsRef.current.get(p.id);
+  // Takim etiketleri: her uyenin adi + canli HP durumu
+  const memberChip = (p: LobbyPlayer) => {
     const dead = deadIds.has(p.id);
-    const hostile = p.team !== myTeam;
+    const snap = p.id === myId ? null : snapshotsRef.current.get(p.id);
+    const hp = p.id === myId ? Math.ceil(g?.hp ?? 0) : Math.ceil(snap?.hp ?? 0);
+    const lvl = p.id === myId ? g?.level ?? 1 : snap?.level ?? 1;
     return (
-      <div style={{ width: small ? "calc(50% - 4px)" : "100%", minWidth: 0, opacity: dead ? 0.45 : 1 }}>
-        <div style={{ ...st.arenaLabel, background: hostile ? "#2d1218" : "#12291c", color: hostile ? "#f87171" : "#4ade80" }}>
-          {dead ? "ÖLDÜ — " : ""}{p.name} · Lv {snap?.level ?? 1} · {Math.max(0, Math.ceil(snap?.hp ?? 0))} HP
-        </div>
-        <canvas
-          ref={(el) => { otherCanvasRefs.current[p.id] = el; }}
-          width={ARENA.width}
-          height={ARENA.height}
-          style={{ display: "block", width: "100%", border: `1px solid ${hostile ? "#402330" : "#1d3a2a"}`, borderRadius: "0 0 8px 8px" }}
-        />
-      </div>
+      <span key={p.id} style={{ opacity: dead ? 0.5 : 1, marginRight: 14 }}>
+        {dead ? "☠ " : ""}{p.name}{p.id === myId ? " (SEN)" : ""} · Lv{lvl} · {Math.max(0, hp)}HP
+      </span>
     );
   };
 
@@ -341,34 +351,35 @@ export default function GameCanvas({ seed, myId, players, hero }: Props) {
         </div>
       </div>
 
-      {/* ---- Ortadan ikiye bolunmus savas alani ---- */}
+      {/* ---- Ortadan ikiye bolunmus savas alani: iki ORTAK harita ---- */}
       <div style={{ display: "flex", flex: 1, gap: 0, minHeight: 0, padding: "6px 8px 4px" }}>
-        {/* SOL: benim takimim */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6, overflowY: "auto", paddingRight: 5 }}>
-          <div>
-            <div style={{ ...st.arenaLabel, background: "#1c1433", color: "#c084fc" }}>
-              {spectating ? "ÖLDÜN (izliyorsun) — " : ""}{myName} (SEN) · TAKIM {myTeam + 1}
-            </div>
-            <canvas
-              ref={canvasRef}
-              width={ARENA.width}
-              height={ARENA.height}
-              style={{ display: "block", width: "100%", border: "1px solid #2b2340", borderRadius: "0 0 8px 8px" }}
-            />
+        {/* SOL: takimimin ortak haritasi (takim arkadaslari ayni mapte) */}
+        <div style={{ flex: 1, minWidth: 0, paddingRight: 5 }}>
+          <div style={{ ...st.arenaLabel, background: "#12291c", color: "#4ade80" }}>
+            TAKIM {myTeam + 1} — {[me, ...teammates].filter(Boolean).map((p) => memberChip(p as LobbyPlayer))}
           </div>
-          {teammates.length > 0 && (
-            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
-              {teammates.map((p) => <ArenaCanvas key={p.id} p={p} small={teammates.length > 1} />)}
-            </div>
-          )}
+          <canvas
+            ref={canvasRef}
+            width={ARENA.width}
+            height={ARENA.height}
+            style={{ display: "block", width: "100%", border: "1px solid #1d3a2a", borderRadius: "0 0 8px 8px" }}
+          />
         </div>
 
         {/* ORTA cizgi */}
-        <div style={{ width: 3, background: "linear-gradient(180deg,#7c3aed44,#ef444444)", borderRadius: 2, flexShrink: 0 }} />
+        <div style={{ width: 3, background: "linear-gradient(180deg,#4ade8044,#ef444444)", borderRadius: 2, flexShrink: 0 }} />
 
-        {/* SAG: dusman takimi */}
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 6, overflowY: "auto", paddingLeft: 5 }}>
-          {enemies.map((p) => <ArenaCanvas key={p.id} p={p} small={enemies.length > 2} />)}
+        {/* SAG: dusman takiminin ortak haritasi */}
+        <div style={{ flex: 1, minWidth: 0, paddingLeft: 5 }}>
+          <div style={{ ...st.arenaLabel, background: "#2d1218", color: "#f87171" }}>
+            DÜŞMAN — {enemies.map((p) => memberChip(p))}
+          </div>
+          <canvas
+            ref={enemyCanvasRef}
+            width={ARENA.width}
+            height={ARENA.height}
+            style={{ display: "block", width: "100%", border: "1px solid #402330", borderRadius: "0 0 8px 8px" }}
+          />
         </div>
       </div>
 

@@ -162,6 +162,42 @@ export const MOB_LINES = [
   "annemi özledim.",
   "abi AI ya",
   "vutututu",
+  "beyler durun konuşalım",
+  "maaş yatmadı daha",
+  "kim bu adam ya",
+  "bacaklarım kısa yetişemiyorum",
+  "of içim çıktı",
+  "mesai kaçta bitiyor?",
+  "usta bir dal sigara?",
+  "ben dün işe girdim",
+  "sendika hakkımız!",
+  "annen selam söyledi",
+  "bu harita çok büyük",
+  "yürümekten öldüm zaten",
+];
+
+// Olurken soyledikleri (yuzen yazi olarak cikar)
+export const MOB_DEATH_LINES = [
+  "söyle karıma onu sevi...",
+  "AAAAAA",
+  "değdi mi şimdi buna?",
+  "geri geleceğim...",
+  "pixellerim!!",
+  "sigortam yoktu be",
+  "hakkımı helal etmiyorum",
+  "en azından denedim",
+  "mola hakkımdı bu",
+];
+
+// Korkak moblar — oyuncudan KACAR (komedi)
+export const COWARD_CHANCE = 0.06; // %6 sansla korkak spawn olur
+export const COWARD_LINES = [
+  "beni değil onu kesin!!",
+  "ben pasifistim!",
+  "sadece izlemeye geldim",
+  "KAÇIN KAÇIN",
+  "ben yokum bu işte",
+  "raporluyum ben ya",
 ];
 
 // Silah seviye carpani: her seviye +%25 hasar, -%5 cooldown

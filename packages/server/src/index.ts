@@ -174,6 +174,17 @@ io.on("connection", (socket: Socket) => {
     });
   }
 
+  // Ayni haritadaki takim arkadasina yaratik temas hasari
+  socket.on("game:teamHit", (payload: { to: string; damage: number }) => {
+    const room = rooms.get(socket.data.roomCode as string);
+    if (!room || room.status !== "active") return;
+    const sender = room.players.get(socket.id);
+    const target = room.players.get(payload?.to);
+    if (sender && target && sender.team === target.team && !target.dead) {
+      io.to(target.id).emit("game:teamHit", { damage: Number(payload.damage) || 0 });
+    }
+  });
+
   socket.on("game:playerDied", () => {
     const room = rooms.get(socket.data.roomCode as string);
     if (!room || room.status !== "active") return;

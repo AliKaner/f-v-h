@@ -504,41 +504,18 @@ export function render(ctx: CanvasRenderingContext2D, g: GameEngine, sprites: Sp
   ctx.textAlign = "left";
 }
 
-/** Rakip/takim arkadasi arenasi — snapshot'tan izleme goruntusu */
-export function renderOpponentView(
+/**
+ * Snapshot'taki varliklari (oyuncu + yaratiklari) mevcut sahnenin USTUNE cizer.
+ * Kendi arenanda takim arkadaslarini gostermek ve dusman birlesik haritasi icin kullanilir.
+ */
+export function renderSnapshotEntities(
   ctx: CanvasRenderingContext2D,
-  snap: OppSnapshot | null,
+  snap: OppSnapshot,
   sprites: SpriteBundle,
   time: number,
-  hostile = true,
+  hostile: boolean,
 ) {
-  const { width, height } = ARENA;
-
-  const bg = ctx.createRadialGradient(width / 2, height / 2, 100, width / 2, height / 2, width * 0.7);
-  if (hostile) {
-    bg.addColorStop(0, "#2d1a1f");
-    bg.addColorStop(1, "#160d11");
-  } else {
-    bg.addColorStop(0, "#1a2d22");
-    bg.addColorStop(1, "#0d1611");
-  }
-  ctx.fillStyle = bg;
-  ctx.fillRect(0, 0, width, height);
-
-  ctx.strokeStyle = "#ffffff06";
-  for (let x = 0; x < width; x += 80) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
-  for (let y = 0; y < height; y += 80) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
-
   ctx.textAlign = "center";
-
-  if (!snap) {
-    ctx.fillStyle = "#8b8b9e";
-    ctx.font = "24px 'Segoe UI', sans-serif";
-    ctx.fillText("Bağlanıyor...", width / 2, height / 2);
-    ctx.textAlign = "left";
-    return;
-  }
-
   const scaleOf = new Map(CREATURES.map((c) => [c.sprite, c.scale]));
   const items: { y: number; draw: () => void }[] = [];
 
@@ -569,22 +546,66 @@ export function renderOpponentView(
     });
   }
 
-  items.push({
-    y: snap.y,
-    draw: () => {
-      const heroSet = (snap.char && sprites.heroes.get(snap.char)) || sprites.heroes.get("soldier");
-      drawSprite(ctx, heroSet, "Idle", time, snap.x, snap.y + 40, 1.1, snap.facing === -1);
-      const w = 60;
-      ctx.fillStyle = "#00000088";
-      ctx.fillRect(snap.x - w / 2, snap.y - 70, w, 6);
-      ctx.fillStyle = hostile ? "#f87171" : "#4ade80";
-      ctx.fillRect(snap.x - w / 2, snap.y - 70, w * Math.max(0, snap.hp / snap.maxHp), 6);
-      if (snap.say) drawBubble(ctx, snap.x, snap.y - 82, snap.say);
-    },
-  });
+  if (snap.hp > 0) {
+    items.push({
+      y: snap.y,
+      draw: () => {
+        const heroSet = (snap.char && sprites.heroes.get(snap.char)) || sprites.heroes.get("soldier");
+        drawSprite(ctx, heroSet, "Idle", time, snap.x, snap.y + 40, 1.1, snap.facing === -1);
+        // isim etiketi
+        if (snap.name) {
+          ctx.font = "700 12px 'Segoe UI', sans-serif";
+          ctx.fillStyle = hostile ? "#f87171" : "#4ade80";
+          ctx.fillText(snap.name, snap.x, snap.y - 78);
+        }
+        const w = 60;
+        ctx.fillStyle = "#00000088";
+        ctx.fillRect(snap.x - w / 2, snap.y - 72, w, 6);
+        ctx.fillStyle = hostile ? "#f87171" : "#4ade80";
+        ctx.fillRect(snap.x - w / 2, snap.y - 72, w * Math.max(0, snap.hp / snap.maxHp), 6);
+        if (snap.say) drawBubble(ctx, snap.x, snap.y - 92, snap.say);
+      },
+    });
+  }
 
   items.sort((a, b) => a.y - b.y);
   for (const it of items) it.draw();
-
   ctx.textAlign = "left";
+}
+
+/** Dusman takiminin BIRLESIK haritasi — tum dusman snapshot'lari tek sahnede */
+export function renderTeamView(
+  ctx: CanvasRenderingContext2D,
+  snaps: OppSnapshot[],
+  sprites: SpriteBundle,
+  time: number,
+  hostile = true,
+) {
+  const { width, height } = ARENA;
+
+  const bg = ctx.createRadialGradient(width / 2, height / 2, 100, width / 2, height / 2, width * 0.7);
+  if (hostile) {
+    bg.addColorStop(0, "#2d1a1f");
+    bg.addColorStop(1, "#160d11");
+  } else {
+    bg.addColorStop(0, "#1a2d22");
+    bg.addColorStop(1, "#0d1611");
+  }
+  ctx.fillStyle = bg;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.strokeStyle = "#ffffff06";
+  for (let x = 0; x < width; x += 80) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, height); ctx.stroke(); }
+  for (let y = 0; y < height; y += 80) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(width, y); ctx.stroke(); }
+
+  if (snaps.length === 0) {
+    ctx.textAlign = "center";
+    ctx.fillStyle = "#8b8b9e";
+    ctx.font = "24px 'Segoe UI', sans-serif";
+    ctx.fillText("Bağlanıyor...", width / 2, height / 2);
+    ctx.textAlign = "left";
+    return;
+  }
+
+  for (const snap of snaps) renderSnapshotEntities(ctx, snap, sprites, time, hostile);
 }
